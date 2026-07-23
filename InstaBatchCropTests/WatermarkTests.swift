@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 import Testing
 @testable import InstaBatchCropCore
 
@@ -26,5 +27,50 @@ struct WatermarkTests {
         let rect = renderer.placementRect(textSize: CGSize(width: 200, height: 80), outputSize: CGSize(width: 1080, height: 1080), settings: settings)
         #expect(rect.midX == 540)
         #expect(rect.midY == 540)
+    }
+
+    @Test func enabledWatermarkChangesPixels() throws {
+        let base = try Self.makeSolidImage(width: 420, height: 240)
+        let renderer = WatermarkRenderer()
+        let rendered = renderer.render(
+            on: base,
+            settings: WatermarkSettings(isEnabled: true, text: "VISIBLE", position: .center, opacity: 1, size: 54, margin: 12)
+        )
+        #expect(Self.pixelDifferenceCount(base, rendered) > 100)
+    }
+
+    private static func makeSolidImage(width: Int, height: Int) throws -> CGImage {
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: width * 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            throw ProcessingError.cannotRender(URL(fileURLWithPath: "solid"))
+        }
+        context.setFillColor(CGColor(red: 0.1, green: 0.1, blue: 0.1, alpha: 1))
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        guard let image = context.makeImage() else {
+            throw ProcessingError.cannotRender(URL(fileURLWithPath: "solid"))
+        }
+        return image
+    }
+
+    private static func pixelDifferenceCount(_ first: CGImage, _ second: CGImage) -> Int {
+        let width = min(first.width, second.width)
+        let height = min(first.height, second.height)
+        var firstData = [UInt8](repeating: 0, count: width * height * 4)
+        var secondData = [UInt8](repeating: 0, count: width * height * 4)
+        let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)!
+        firstData.withUnsafeMutableBytes { bytes in
+            CGContext(data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)?.draw(first, in: CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        secondData.withUnsafeMutableBytes { bytes in
+            CGContext(data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)?.draw(second, in: CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        return zip(firstData, secondData).filter { abs(Int($0) - Int($1)) > 8 }.count
     }
 }

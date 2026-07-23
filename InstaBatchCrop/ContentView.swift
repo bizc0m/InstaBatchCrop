@@ -9,14 +9,14 @@ struct ContentView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             leftPane
-                .frame(width: 340)
+                .frame(width: 300)
                 .layoutPriority(1)
             Divider()
             rightPane
-                .frame(minWidth: 880, maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(16)
-        .frame(minWidth: 1280, minHeight: 840)
+        .frame(minWidth: 1060, minHeight: 760)
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             viewModel.handleDrop(providers)
         }
@@ -112,18 +112,18 @@ struct ContentView: View {
                     ForEach(CropMode.allCases) { Text($0.displayName).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 520)
+                .frame(minWidth: 320, maxWidth: 460)
             }
             ControlRow("Secours") {
                 Picker("", selection: $viewModel.fallbackMode) {
                     ForEach(FallbackMode.allCases) { Text($0.displayName).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                .frame(maxWidth: 640)
+                .frame(minWidth: 420, maxWidth: 500)
             }
             ControlRow("Marge") {
                 Slider(value: $viewModel.margin, in: 0.02...0.35)
-                    .frame(maxWidth: 560)
+                    .frame(minWidth: 120, maxWidth: 360)
                 Text("\(Int(viewModel.margin * 100))%")
                     .frame(width: 48, alignment: .trailing)
             }
@@ -132,40 +132,40 @@ struct ContentView: View {
                     ForEach(ExportFileType.allCases) { Text($0.rawValue.uppercased()).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 260)
+                .frame(width: 230)
                 Toggle("Metadonnees", isOn: $viewModel.preserveMetadata)
             }
             ControlRow("Compression") {
                 Slider(value: $viewModel.jpegQuality, in: 0.5...1.0)
-                    .frame(maxWidth: 560)
+                    .frame(minWidth: 120, maxWidth: 340)
                 Toggle("Debug boxes", isOn: $viewModel.debugOverlay)
             }
             ControlRow("Watermark") {
                 Toggle("Actif", isOn: $viewModel.watermarkEnabled)
                 TextField("Texte", text: $viewModel.watermarkText)
                     .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: 460)
+                    .frame(minWidth: 160, maxWidth: 340)
             }
             ControlRow("Position") {
                 Picker("", selection: $viewModel.watermarkPosition) {
                     ForEach(WatermarkPosition.allCases) { Text($0.displayName).tag($0) }
                 }
                 .pickerStyle(.menu)
-                .frame(width: 190)
+                .frame(width: 150)
                 HStack {
                     Text("Opacite")
                     Slider(value: $viewModel.watermarkOpacity, in: 0.05...1.0)
                 }
-                .frame(maxWidth: 360)
+                .frame(minWidth: 160, maxWidth: 260)
             }
             ControlRow("Taille watermark") {
                 Slider(value: $viewModel.watermarkSize, in: 12...120)
-                    .frame(maxWidth: 360)
+                    .frame(minWidth: 120, maxWidth: 240)
                 HStack {
                     Text("Marge")
                     Slider(value: $viewModel.watermarkMargin, in: 0...160)
                 }
-                .frame(maxWidth: 360)
+                .frame(minWidth: 120, maxWidth: 240)
             }
         }
     }
@@ -213,13 +213,13 @@ struct ContentView: View {
                 GridRow {
                     Text("X")
                     Slider(value: $viewModel.manualOffsetX, in: -1...1)
-                        .frame(width: 190)
+                        .frame(minWidth: 120, maxWidth: 190)
                     Text("Y")
                     Slider(value: $viewModel.manualOffsetY, in: -1...1)
-                        .frame(width: 190)
+                        .frame(minWidth: 120, maxWidth: 190)
                     Text("Zoom")
                     Slider(value: $viewModel.manualZoom, in: 0.8...1.6)
-                        .frame(width: 190)
+                        .frame(minWidth: 120, maxWidth: 190)
                 }
             }
         }
@@ -273,7 +273,7 @@ struct ControlRow<Content: View>: View {
         HStack(alignment: .center, spacing: 14) {
             Text(title)
                 .font(.body.weight(.semibold))
-                .frame(width: 145, alignment: .leading)
+                .frame(width: 115, alignment: .leading)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
             content
@@ -302,6 +302,7 @@ struct PreviewBox: View {
             .frame(height: 280)
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -345,5 +346,6 @@ struct DraggablePreviewBox: View {
             }
             .frame(height: 280)
         }
+        .frame(maxWidth: .infinity)
     }
 }

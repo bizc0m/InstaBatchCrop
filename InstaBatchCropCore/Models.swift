@@ -65,7 +65,7 @@ public enum FallbackMode: String, CaseIterable, Identifiable, Sendable {
         case .blurredBackground: "Fond floute"
         case .solidBackground: "Fond uni"
         case .keepWholeImage: "Image entiere"
-        case .maximumCrop: "Recadrage maximal"
+        case .maximumCrop: "Recadrage max"
         }
     }
 }

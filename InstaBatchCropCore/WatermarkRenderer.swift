@@ -1,45 +1,54 @@
-import AppKit
-import CoreImage
+import CoreGraphics
+import CoreText
 import Foundation
 
 public struct WatermarkRenderer: Sendable {
     public init() {}
 
-    public func render(on image: CIImage, outputExtent: CGRect, settings: WatermarkSettings) -> CIImage {
+    public func render(on image: CGImage, settings: WatermarkSettings) -> CGImage {
         guard settings.isEnabled, !settings.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return image
         }
-        let context = CIContext(options: [.useSoftwareRenderer: false])
-        guard let base = context.createCGImage(image, from: outputExtent) else {
+        let width = image.width
+        let height = image.height
+        guard let colorSpace = image.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(
+                data: nil,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              ) else {
             return image
         }
 
-        let nsImage = NSImage(size: outputExtent.size)
-        nsImage.lockFocus()
-        NSGraphicsContext.current?.imageInterpolation = .high
-        NSImage(cgImage: base, size: outputExtent.size).draw(in: outputExtent)
+        let outputRect = CGRect(x: 0, y: 0, width: width, height: height)
+        context.draw(image, in: outputRect)
 
-        let font = NSFont.systemFont(ofSize: settings.size, weight: .semibold)
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.alignment = .center
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: NSColor.white.withAlphaComponent(settings.opacity),
-            .paragraphStyle: paragraph,
-            .shadow: shadow(opacity: settings.opacity)
+        let font = CTFontCreateWithName("HelveticaNeue-Semibold" as CFString, settings.size, nil)
+        let color = CGColor(red: 1, green: 1, blue: 1, alpha: min(max(settings.opacity, 0), 1))
+        let attributes: [CFString: Any] = [
+            kCTFontAttributeName: font,
+            kCTForegroundColorAttributeName: color
         ]
-        let attributed = NSAttributedString(string: settings.text, attributes: attributes)
-        let textSize = attributed.size()
-        let rect = placementRect(textSize: textSize, outputSize: outputExtent.size, settings: settings)
-        attributed.draw(in: rect)
+        let attributed = CFAttributedStringCreate(nil, settings.text as CFString, attributes as CFDictionary)!
+        let line = CTLineCreateWithAttributedString(attributed)
+        let bounds = CTLineGetBoundsWithOptions(line, [.useOpticalBounds])
+        let textSize = CGSize(width: ceil(bounds.width), height: ceil(settings.size * 1.25))
+        let rect = placementRect(textSize: textSize, outputSize: outputRect.size, settings: settings)
 
-        nsImage.unlockFocus()
-        guard let tiff = nsImage.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiff),
-              let cg = bitmap.cgImage else {
+        context.saveGState()
+        context.setShadow(offset: CGSize(width: 0, height: -2), blur: 8, color: CGColor(red: 0, green: 0, blue: 0, alpha: min(0.75, settings.opacity + 0.25)))
+        context.textPosition = CGPoint(x: rect.minX, y: rect.minY + max(0, (rect.height - settings.size) / 2))
+        CTLineDraw(line, context)
+        context.restoreGState()
+
+        guard let rendered = context.makeImage() else {
             return image
         }
-        return CIImage(cgImage: cg)
+        return rendered
     }
 
     public func placementRect(textSize: CGSize, outputSize: CGSize, settings: WatermarkSettings) -> CGRect {
@@ -57,13 +66,5 @@ public struct WatermarkRenderer: Sendable {
             CGPoint(x: (outputSize.width - textSize.width) / 2, y: (outputSize.height - textSize.height) / 2)
         }
         return CGRect(origin: origin, size: textSize)
-    }
-
-    private func shadow(opacity: CGFloat) -> NSShadow {
-        let shadow = NSShadow()
-        shadow.shadowBlurRadius = 6
-        shadow.shadowOffset = CGSize(width: 0, height: -1)
-        shadow.shadowColor = NSColor.black.withAlphaComponent(min(0.7, opacity + 0.25))
-        return shadow
     }
 }

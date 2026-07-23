@@ -7,7 +7,18 @@ import UniformTypeIdentifiers
 @MainActor
 final class AppViewModel: ObservableObject {
     @Published var images: [ImportedImage] = []
-    @Published var selectedIDs: Set<ImportedImage.ID> = []
+    @Published var selectedIDs: Set<ImportedImage.ID> = [] {
+        didSet {
+            guard selectedIDs != oldValue else { return }
+            if let newlySelected = selectedIDs.subtracting(oldValue).first {
+                primarySelectedID = newlySelected
+            } else if let primarySelectedID, !selectedIDs.contains(primarySelectedID) {
+                self.primarySelectedID = selectedIDs.first
+            } else if primarySelectedID == nil {
+                primarySelectedID = selectedIDs.first
+            }
+        }
+    }
     @Published var selectedFormats: Set<OutputFormat> = [.portrait4x5, .square]
     @Published var cropMode: CropMode = .natural
     @Published var fallbackMode: FallbackMode = .blurredBackground
@@ -38,9 +49,11 @@ final class AppViewModel: ObservableObject {
     private let engine = CropEngine()
     private let renderer = ImageRenderer()
     private var manualDecisions: [String: CropDecision] = [:]
+    private var primarySelectedID: ImportedImage.ID?
 
     var selectedImage: ImportedImage? {
-        if let selected = images.first(where: { selectedIDs.contains($0.id) }) {
+        if let primarySelectedID,
+           let selected = images.first(where: { $0.id == primarySelectedID }) {
             return selected
         }
         return images.first
@@ -97,6 +110,7 @@ final class AppViewModel: ObservableObject {
         images.append(contentsOf: newImages)
         if selectedIDs.isEmpty, let first = images.first?.id {
             selectedIDs = [first]
+            primarySelectedID = first
         }
     }
 
@@ -108,6 +122,7 @@ final class AppViewModel: ObservableObject {
             !removedPaths.contains(where: { key.hasPrefix("\($0)|") })
         }
         selectedIDs = images.first.map { [$0.id] } ?? []
+        primarySelectedID = images.first?.id
         afterPreview = nil
         previewDecision = nil
     }
@@ -115,6 +130,7 @@ final class AppViewModel: ObservableObject {
     func clearQueue() {
         images.removeAll()
         selectedIDs.removeAll()
+        primarySelectedID = nil
         manualDecisions.removeAll()
         results.removeAll()
         afterPreview = nil
@@ -145,7 +161,7 @@ final class AppViewModel: ObservableObject {
 
     func generatePreview() async {
         guard let image = selectedImage else { return }
-        let format = selectedFormats.first ?? .portrait4x5
+        let format = selectedFormats.sorted { $0.rawValue < $1.rawValue }.first ?? .portrait4x5
         do {
             let analysis = try analyzer.analyze(imageURL: image.url)
             let automatic = engine.decide(imageSize: analysis.size, observations: analysis.observations, target: format, settings: settings())
@@ -161,7 +177,7 @@ final class AppViewModel: ObservableObject {
 
     func applyManualCrop() {
         guard let image = selectedImage, var decision = previewDecision else { return }
-        let format = selectedFormats.first ?? .portrait4x5
+        let format = selectedFormats.sorted { $0.rawValue < $1.rawValue }.first ?? .portrait4x5
         decision.usesFallback = false
         decision.reason = "Correction manuelle appliquee"
         manualDecisions[BatchProcessor.overrideKey(inputURL: image.url, format: format)] = decision

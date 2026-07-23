@@ -53,21 +53,20 @@ public struct ImageRenderer: Sendable {
             result = scaleToFill(cropped, outputExtent: outputExtent)
         }
 
-        let watermarked = watermarkRenderer.render(on: result, outputExtent: outputExtent, settings: settings.watermark)
-
         let final = settings.debugOverlay ? drawDebugOverlay(
-            on: watermarked,
+            on: result,
             outputExtent: outputExtent,
             decision: decision,
             observations: observations,
             sourceExtent: sourceExtent,
             cropRect: decision.usesFallback ? sourceExtent : decision.cropRect
-        ) : watermarked
+        ) : result
 
         guard let cgImage = context.createCGImage(final, from: outputExtent) else {
             throw ProcessingError.cannotRender(inputURL)
         }
-        return RenderedImage(image: cgImage, metadata: metadata)
+        let watermarked = watermarkRenderer.render(on: cgImage, settings: settings.watermark)
+        return RenderedImage(image: watermarked, metadata: metadata)
     }
 
     public func write(_ rendered: RenderedImage, to outputURL: URL, settings: CropSettings) throws {
