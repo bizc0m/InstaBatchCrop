@@ -5,3 +5,4 @@ DerivedData/
 tmp/
 exports/
 .DS_Store
+dist/**/*.iconset/

@@ -25,6 +25,7 @@ Version de developpement basee sur v0.7, compilee et testee localement.
 - Selection multiple dans la file, suppression des images selectionnees et nettoyage complet de la file.
 - Deplacement direct du cadrage dans l'apercu apres avec outil main.
 - Watermark texte optionnel applique au rendu final.
+- Icône d'application intégrée dans le bundle macOS `dist/1.0-dev`.
 
 ## Compilation
 
@@ -102,6 +103,10 @@ Le controle `Compression` pilote la qualite transmise a ImageIO. Il est signific
 ## Watermark
 
 Le watermark est local et optionnel. La version actuelle supporte un texte, une position, une opacite, une taille et une marge. La logique est separee dans `WatermarkRenderer` pour permettre de remplacer plus tard le texte par une image ou un logo.
+
+## Icone
+
+L'icone source est conservee dans `assets/AppIcon.png`. Le bundle macOS utilise `AppIcon.icns` dans `dist/1.0-dev/InstaBatch Crop V1.0-dev.app/Contents/Resources/`.
 
 ## Photos de test
 

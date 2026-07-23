@@ -9,6 +9,7 @@
 - Renommage du controle `JPEG` en `Compression`.
 - Ajout watermark texte optionnel au rendu final.
 - Ajout `WatermarkRenderer` dans le core.
+- Ajout icone d'application dans le bundle macOS.
 - Tests portes a 12, avec integration batch watermark.
 
 ## 0.7 - 2026-07-23
