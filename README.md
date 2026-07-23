@@ -2,6 +2,10 @@
 
 Application macOS native SwiftUI pour adapter des photos en lot aux formats Instagram en gardant le sujet principal dans le cadre.
 
+## Version
+
+0.7
+
 ## Statut
 
 MVP fonctionnel compile et teste localement.

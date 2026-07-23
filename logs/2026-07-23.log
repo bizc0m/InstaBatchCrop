@@ -3,3 +3,4 @@
 [08:36] ACTION | InstaBatchCrop | creation interface SwiftUI native | 
 [08:36] ACTION | InstaBatchCropTests | swift test 9 tests passes | 
 [08:36] ACTION | xcodebuild | build succeeded | warning CoreSimulator obsolete hors cible macOS
+[08:39] ACTION | VERSION | version 0.7 validee utilisateur | 
