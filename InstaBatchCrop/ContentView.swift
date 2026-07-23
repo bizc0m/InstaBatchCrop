@@ -7,16 +7,16 @@ struct ContentView: View {
     @StateObject private var viewModel = AppViewModel()
 
     var body: some View {
-        HStack(alignment: .top, spacing: 18) {
+        HStack(alignment: .top, spacing: 14) {
             leftPane
-                .frame(width: 360)
+                .frame(width: 340)
                 .layoutPriority(1)
             Divider()
             rightPane
-                .frame(minWidth: 720, maxWidth: .infinity, maxHeight: .infinity)
+                .frame(minWidth: 880, maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(16)
-        .frame(minWidth: 1160, minHeight: 760)
+        .frame(minWidth: 1280, minHeight: 840)
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             viewModel.handleDrop(providers)
         }
@@ -43,9 +43,10 @@ struct ContentView: View {
                 }
                 .help("Retirer les images selectionnees")
                 .disabled(viewModel.selectedIDs.isEmpty)
-                Button("Nettoyer la file") {
+                Button("Vider") {
                     viewModel.clearQueue()
                 }
+                .help("Nettoyer toute la file")
                 .disabled(viewModel.images.isEmpty)
             }
             List(selection: $viewModel.selectedIDs) {
@@ -171,10 +172,9 @@ struct ContentView: View {
 
     private var preview: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Apercu avant / apres")
-                    .font(.headline)
-                Spacer()
+            Text("Apercu avant / apres")
+                .font(.headline)
+            HStack(spacing: 10) {
                 Button("Generer apercu") {
                     Task { await viewModel.generatePreview() }
                 }
@@ -186,10 +186,12 @@ struct ContentView: View {
                 }
                 .help("Deplacer le cadrage dans l'apercu apres")
                 .buttonStyle(.bordered)
-                Button("Appliquer correction manuelle") {
+                Button("Appliquer correction") {
                     viewModel.applyManualCrop()
                 }
+                .help("Appliquer la correction manuelle au batch")
                 .disabled(viewModel.previewDecision == nil)
+                Spacer(minLength: 0)
             }
             HStack(spacing: 16) {
                 PreviewBox(title: "Avant", image: viewModel.selectedImage?.preview)
@@ -211,10 +213,13 @@ struct ContentView: View {
                 GridRow {
                     Text("X")
                     Slider(value: $viewModel.manualOffsetX, in: -1...1)
+                        .frame(width: 190)
                     Text("Y")
                     Slider(value: $viewModel.manualOffsetY, in: -1...1)
+                        .frame(width: 190)
                     Text("Zoom")
                     Slider(value: $viewModel.manualZoom, in: 0.8...1.6)
+                        .frame(width: 190)
                 }
             }
         }
@@ -268,7 +273,7 @@ struct ControlRow<Content: View>: View {
         HStack(alignment: .center, spacing: 14) {
             Text(title)
                 .font(.body.weight(.semibold))
-                .frame(width: 150, alignment: .leading)
+                .frame(width: 145, alignment: .leading)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
             content
