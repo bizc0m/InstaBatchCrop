@@ -7,13 +7,16 @@ struct ContentView: View {
     @StateObject private var viewModel = AppViewModel()
 
     var body: some View {
-        HSplitView {
+        HStack(alignment: .top, spacing: 18) {
             leftPane
-                .frame(minWidth: 360, idealWidth: 420)
+                .frame(width: 360)
+                .layoutPriority(1)
+            Divider()
             rightPane
-                .frame(minWidth: 650)
+                .frame(minWidth: 720, maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(16)
+        .frame(minWidth: 1160, minHeight: 760)
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             viewModel.handleDrop(providers)
         }
@@ -74,23 +77,26 @@ struct ContentView: View {
             .disabled(viewModel.images.isEmpty || viewModel.selectedFormats.isEmpty || viewModel.isProcessing)
             .buttonStyle(.borderedProminent)
         }
+        .frame(maxHeight: .infinity)
     }
 
     private var rightPane: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            controls
-            Divider()
-            preview
-            Divider()
-            report
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                controls
+                Divider()
+                preview
+                Divider()
+                report
+                    .frame(minHeight: 180)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.leading, 12)
     }
 
     private var controls: some View {
-        Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 10) {
-            GridRow {
-                Text("Formats")
+        VStack(alignment: .leading, spacing: 12) {
+            ControlRow("Formats") {
                 HStack {
                     ForEach(OutputFormat.allCases) { format in
                         Toggle(format.displayName, isOn: Binding(
@@ -100,62 +106,65 @@ struct ContentView: View {
                     }
                 }
             }
-            GridRow {
-                Text("Mode")
+            ControlRow("Mode") {
                 Picker("", selection: $viewModel.cropMode) {
                     ForEach(CropMode.allCases) { Text($0.displayName).tag($0) }
                 }
                 .pickerStyle(.segmented)
+                .frame(maxWidth: 520)
             }
-            GridRow {
-                Text("Secours")
+            ControlRow("Secours") {
                 Picker("", selection: $viewModel.fallbackMode) {
                     ForEach(FallbackMode.allCases) { Text($0.displayName).tag($0) }
                 }
                 .pickerStyle(.segmented)
+                .frame(maxWidth: 640)
             }
-            GridRow {
-                Text("Marge")
+            ControlRow("Marge") {
                 Slider(value: $viewModel.margin, in: 0.02...0.35)
+                    .frame(maxWidth: 560)
                 Text("\(Int(viewModel.margin * 100))%")
+                    .frame(width: 48, alignment: .trailing)
             }
-            GridRow {
-                Text("Export")
+            ControlRow("Export") {
                 Picker("", selection: $viewModel.exportType) {
                     ForEach(ExportFileType.allCases) { Text($0.rawValue.uppercased()).tag($0) }
                 }
                 .pickerStyle(.segmented)
+                .frame(width: 260)
                 Toggle("Metadonnees", isOn: $viewModel.preserveMetadata)
             }
-            GridRow {
-                Text("Compression")
+            ControlRow("Compression") {
                 Slider(value: $viewModel.jpegQuality, in: 0.5...1.0)
+                    .frame(maxWidth: 560)
                 Toggle("Debug boxes", isOn: $viewModel.debugOverlay)
             }
-            GridRow {
-                Text("Watermark")
+            ControlRow("Watermark") {
                 Toggle("Actif", isOn: $viewModel.watermarkEnabled)
                 TextField("Texte", text: $viewModel.watermarkText)
                     .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 460)
             }
-            GridRow {
-                Text("Position")
+            ControlRow("Position") {
                 Picker("", selection: $viewModel.watermarkPosition) {
                     ForEach(WatermarkPosition.allCases) { Text($0.displayName).tag($0) }
                 }
                 .pickerStyle(.menu)
+                .frame(width: 190)
                 HStack {
                     Text("Opacite")
                     Slider(value: $viewModel.watermarkOpacity, in: 0.05...1.0)
                 }
+                .frame(maxWidth: 360)
             }
-            GridRow {
-                Text("Watermark taille")
+            ControlRow("Taille watermark") {
                 Slider(value: $viewModel.watermarkSize, in: 12...120)
+                    .frame(maxWidth: 360)
                 HStack {
                     Text("Marge")
                     Slider(value: $viewModel.watermarkMargin, in: 0...160)
                 }
+                .frame(maxWidth: 360)
             }
         }
     }
@@ -243,6 +252,29 @@ struct DropZone: View {
                 }
                 .foregroundStyle(.secondary)
             }
+    }
+}
+
+struct ControlRow<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 14) {
+            Text(title)
+                .font(.body.weight(.semibold))
+                .frame(width: 150, alignment: .leading)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            content
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
