@@ -1,0 +1,5 @@
+[08:36] ACTION | README.md | creation documentation MVP | 
+[08:36] ACTION | InstaBatchCropCore | creation moteur Vision/cadrage/rendu/batch | 
+[08:36] ACTION | InstaBatchCrop | creation interface SwiftUI native | 
+[08:36] ACTION | InstaBatchCropTests | swift test 9 tests passes | 
+[08:36] ACTION | xcodebuild | build succeeded | warning CoreSimulator obsolete hors cible macOS
