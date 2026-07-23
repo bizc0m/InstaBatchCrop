@@ -48,6 +48,36 @@ struct WatermarkTests {
         #expect(Self.pixelDifferenceCount(base, rendered) > 100)
     }
 
+    @Test func textWatermarkColorChangesRenderedPixels() throws {
+        let base = try Self.makeSolidImage(width: 420, height: 240)
+        let renderer = WatermarkRenderer()
+        let red = renderer.render(
+            on: base,
+            settings: WatermarkSettings(
+                isEnabled: true,
+                text: "COLOR",
+                position: .center,
+                color: WatermarkColor(red: 1, green: 0, blue: 0),
+                opacity: 1,
+                size: 54,
+                margin: 12
+            )
+        )
+        let blue = renderer.render(
+            on: base,
+            settings: WatermarkSettings(
+                isEnabled: true,
+                text: "COLOR",
+                position: .center,
+                color: WatermarkColor(red: 0, green: 0, blue: 1),
+                opacity: 1,
+                size: 54,
+                margin: 12
+            )
+        )
+        #expect(Self.pixelDifferenceCount(red, blue) > 100)
+    }
+
     @Test func transparentLogoWatermarkChangesPixels() throws {
         let base = try Self.makeSolidImage(width: 420, height: 240)
         let logoURL = try Self.makeTransparentLogo()
@@ -57,6 +87,39 @@ struct WatermarkTests {
             settings: WatermarkSettings(isEnabled: true, text: "", imageURL: logoURL, position: .center, opacity: 0.9, size: 52, margin: 12)
         )
         #expect(Self.pixelDifferenceCount(base, rendered) > 100)
+    }
+
+    @Test func logoWatermarkColorChangesRenderedPixels() throws {
+        let base = try Self.makeSolidImage(width: 420, height: 240)
+        let logoURL = try Self.makeTransparentLogo()
+        let renderer = WatermarkRenderer()
+        let red = renderer.render(
+            on: base,
+            settings: WatermarkSettings(
+                isEnabled: true,
+                text: "",
+                imageURL: logoURL,
+                position: .center,
+                color: WatermarkColor(red: 1, green: 0, blue: 0),
+                opacity: 1,
+                size: 52,
+                margin: 12
+            )
+        )
+        let blue = renderer.render(
+            on: base,
+            settings: WatermarkSettings(
+                isEnabled: true,
+                text: "",
+                imageURL: logoURL,
+                position: .center,
+                color: WatermarkColor(red: 0, green: 0, blue: 1),
+                opacity: 1,
+                size: 52,
+                margin: 12
+            )
+        )
+        #expect(Self.pixelDifferenceCount(red, blue) > 100)
     }
 
     private static func makeSolidImage(width: Int, height: Int) throws -> CGImage {

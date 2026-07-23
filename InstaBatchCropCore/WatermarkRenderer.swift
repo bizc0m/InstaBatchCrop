@@ -75,7 +75,14 @@ public struct WatermarkRenderer: Sendable {
         context.saveGState()
         context.setAlpha(min(max(settings.opacity, 0), 1))
         context.interpolationQuality = .high
-        context.draw(logo, in: rect)
+        context.clip(to: rect, mask: logo)
+        context.setFillColor(CGColor(
+            red: min(max(settings.color.red, 0), 1),
+            green: min(max(settings.color.green, 0), 1),
+            blue: min(max(settings.color.blue, 0), 1),
+            alpha: 1
+        ))
+        context.fill(rect)
         context.restoreGState()
     }
 
