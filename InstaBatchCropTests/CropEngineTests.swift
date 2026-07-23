@@ -97,4 +97,23 @@ struct CropEngineTests {
         )
         #expect(decision.cropRect.contains(face))
     }
+
+    @Test func handDragMovesCropInsideInstagramFrame() {
+        let decision = CropDecision(
+            cropRect: CGRect(x: 400, y: 300, width: 800, height: 1000),
+            subjectRect: CGRect(x: 650, y: 620, width: 200, height: 260),
+            score: 0.9,
+            usesFallback: false,
+            reason: "Test"
+        )
+        let moved = engine.moveCrop(
+            decision,
+            imageSize: CGSize(width: 1800, height: 1400),
+            outputTranslation: CGSize(width: 108, height: 0),
+            outputSize: CGSize(width: 1080, height: 1350)
+        )
+        #expect(moved.cropRect.minX == 320)
+        #expect(moved.cropRect.minY == 300)
+        #expect(moved.usesFallback == false)
+    }
 }

@@ -198,8 +198,7 @@ struct ContentView: View {
                 DraggablePreviewBox(
                     title: "Apres",
                     image: viewModel.afterPreview,
-                    isHandEnabled: viewModel.handToolEnabled,
-                    dragOffset: $viewModel.previewDragOffset
+                    isHandEnabled: viewModel.handToolEnabled
                 ) { translation, size in
                     Task { await viewModel.applyPreviewDrag(translation, previewSize: size) }
                 }
@@ -310,8 +309,8 @@ struct DraggablePreviewBox: View {
     let title: String
     let image: NSImage?
     let isHandEnabled: Bool
-    @Binding var dragOffset: CGSize
     let onDragEnded: (CGSize, CGSize) -> Void
+    @State private var liveDrag: CGSize = .zero
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -331,16 +330,26 @@ struct DraggablePreviewBox: View {
                             .resizable()
                             .scaledToFit()
                             .padding(6)
-                            .offset(dragOffset)
+                            .opacity(liveDrag == .zero ? 1 : 0.82)
+                    }
+                }
+                .overlay {
+                    if isHandEnabled {
+                        Image(systemName: "hand.draw")
+                            .font(.system(size: 28, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .shadow(radius: 4)
+                            .offset(liveDrag)
                     }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .contentShape(Rectangle())
                 .gesture(isHandEnabled ? DragGesture()
                     .onChanged { value in
-                        dragOffset = value.translation
+                        liveDrag = value.translation
                     }
                     .onEnded { value in
+                        liveDrag = .zero
                         onDragEnded(value.translation, proxy.size)
                     } : nil)
             }

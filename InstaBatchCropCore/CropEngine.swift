@@ -4,6 +4,23 @@ import Foundation
 public struct CropEngine: Sendable {
     public init() {}
 
+    public func moveCrop(_ decision: CropDecision, imageSize: CGSize, outputTranslation: CGSize, outputSize: CGSize) -> CropDecision {
+        guard outputSize.width > 1, outputSize.height > 1, imageSize.width > 1, imageSize.height > 1 else {
+            return decision
+        }
+        var adjusted = decision
+        let imageRect = CGRect(origin: .zero, size: imageSize)
+        var rect = decision.cropRect
+        let sourceDX = -outputTranslation.width / outputSize.width * rect.width
+        let sourceDY = -outputTranslation.height / outputSize.height * rect.height
+        rect.origin.x += sourceDX
+        rect.origin.y += sourceDY
+        adjusted.cropRect = clamp(rect, in: imageRect).integral
+        adjusted.usesFallback = false
+        adjusted.reason = "Correction main"
+        return adjusted
+    }
+
     public func decide(
         imageSize: CGSize,
         observations: [SubjectObservation],

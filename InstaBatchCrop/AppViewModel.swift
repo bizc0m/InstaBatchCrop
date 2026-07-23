@@ -36,7 +36,6 @@ final class AppViewModel: ObservableObject {
     @Published var manualOffsetY: CGFloat = 0
     @Published var manualZoom: CGFloat = 1
     @Published var handToolEnabled = false
-    @Published var previewDragOffset: CGSize = .zero
     @Published var watermarkEnabled = false
     @Published var watermarkText = "InstaBatch Crop"
     @Published var watermarkPosition: WatermarkPosition = .bottomRight
@@ -50,6 +49,7 @@ final class AppViewModel: ObservableObject {
     private let renderer = ImageRenderer()
     private var manualDecisions: [String: CropDecision] = [:]
     private var primarySelectedID: ImportedImage.ID?
+    private var lastPreviewAnalysis: (url: URL, imageSize: CGSize, observations: [SubjectObservation], format: OutputFormat)?
 
     var selectedImage: ImportedImage? {
         if let primarySelectedID,
@@ -125,6 +125,7 @@ final class AppViewModel: ObservableObject {
         primarySelectedID = images.first?.id
         afterPreview = nil
         previewDecision = nil
+        lastPreviewAnalysis = nil
     }
 
     func clearQueue() {
@@ -135,6 +136,7 @@ final class AppViewModel: ObservableObject {
         results.removeAll()
         afterPreview = nil
         previewDecision = nil
+        lastPreviewAnalysis = nil
         progress = 0
     }
 
@@ -170,6 +172,7 @@ final class AppViewModel: ObservableObject {
             let rendered = try renderer.render(inputURL: image.url, target: format, decision: decision, observations: analysis.observations, settings: settings())
             afterPreview = NSImage(cgImage: rendered.image, size: format.pixelSize)
             previewDecision = decision
+            lastPreviewAnalysis = (image.url, analysis.size, analysis.observations, format)
         } catch {
             updateStatus(for: image.id, status: error.localizedDescription)
         }
@@ -185,11 +188,34 @@ final class AppViewModel: ObservableObject {
     }
 
     func applyPreviewDrag(_ translation: CGSize, previewSize: CGSize) async {
-        guard previewSize.width > 1, previewSize.height > 1 else { return }
-        manualOffsetX = clamp(manualOffsetX + translation.width / previewSize.width * 2.0, lower: -1, upper: 1)
-        manualOffsetY = clamp(manualOffsetY - translation.height / previewSize.height * 2.0, lower: -1, upper: 1)
-        previewDragOffset = .zero
-        await generatePreview()
+        guard let image = selectedImage,
+              let decision = previewDecision,
+              let analysis = lastPreviewAnalysis,
+              analysis.url == image.url,
+              previewSize.width > 1,
+              previewSize.height > 1 else { return }
+        let moved = engine.moveCrop(
+            decision,
+            imageSize: analysis.imageSize,
+            outputTranslation: translation,
+            outputSize: previewSize
+        )
+        let key = BatchProcessor.overrideKey(inputURL: image.url, format: analysis.format)
+        manualDecisions[key] = moved
+        previewDecision = moved
+        do {
+            let rendered = try renderer.render(
+                inputURL: image.url,
+                target: analysis.format,
+                decision: moved,
+                observations: analysis.observations,
+                settings: settings()
+            )
+            afterPreview = NSImage(cgImage: rendered.image, size: analysis.format.pixelSize)
+            updateStatus(for: image.id, status: "Correction main")
+        } catch {
+            updateStatus(for: image.id, status: error.localizedDescription)
+        }
     }
 
     func processAll() async {
