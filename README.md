@@ -37,7 +37,7 @@ Dans Xcode: `File > Open...` puis ouvrir le dossier `InstaBatchCrop` ou `Package
 
 ## Utilisation
 
-1. Lancer l'application depuis Xcode ou avec `swift run InstaBatchCrop`.
+1. Lancer l'application autonome `dist/0.7/InstaBatch Crop V0.7.app`, depuis Xcode ou avec `swift run InstaBatchCrop`.
 2. Ajouter des images avec `Choisir fichiers`, `Choisir dossier` ou glisser-deposer.
 3. Choisir un ou plusieurs formats.
 4. Regler mode, marge, secours, type d'export et qualite.
