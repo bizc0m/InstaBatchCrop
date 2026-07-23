@@ -144,7 +144,29 @@ struct ContentView: View {
                 Toggle("Actif", isOn: $viewModel.watermarkEnabled)
                 TextField("Texte", text: $viewModel.watermarkText)
                     .textFieldStyle(.roundedBorder)
-                    .frame(minWidth: 160, maxWidth: 340)
+                    .frame(minWidth: 140, maxWidth: 260)
+                ColorPicker("", selection: $viewModel.watermarkColor)
+                    .labelsHidden()
+                    .frame(width: 44)
+                Button("Logo") {
+                    viewModel.selectWatermarkImage()
+                }
+                .help("Choisir une image watermark, PNG transparent recommande")
+                Button {
+                    viewModel.clearWatermarkImage()
+                } label: {
+                    Image(systemName: "xmark.circle")
+                }
+                .help("Retirer le logo watermark")
+                .disabled(viewModel.watermarkImageURL == nil)
+            }
+            if let logoName = viewModel.watermarkImageURL?.lastPathComponent {
+                ControlRow("Logo actif") {
+                    Text(logoName)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
             ControlRow("Position") {
                 Picker("", selection: $viewModel.watermarkPosition) {

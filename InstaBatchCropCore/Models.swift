@@ -109,7 +109,9 @@ public enum WatermarkPosition: String, CaseIterable, Identifiable, Sendable {
 public struct WatermarkSettings: Equatable, Sendable {
     public var isEnabled: Bool
     public var text: String
+    public var imageURL: URL?
     public var position: WatermarkPosition
+    public var color: WatermarkColor
     public var opacity: CGFloat
     public var size: CGFloat
     public var margin: CGFloat
@@ -117,20 +119,38 @@ public struct WatermarkSettings: Equatable, Sendable {
     public init(
         isEnabled: Bool = false,
         text: String = "InstaBatch Crop",
+        imageURL: URL? = nil,
         position: WatermarkPosition = .bottomRight,
+        color: WatermarkColor = .white,
         opacity: CGFloat = 0.45,
         size: CGFloat = 42,
         margin: CGFloat = 48
     ) {
         self.isEnabled = isEnabled
         self.text = text
+        self.imageURL = imageURL
         self.position = position
+        self.color = color
         self.opacity = opacity
         self.size = size
         self.margin = margin
     }
 
     public static let disabled = WatermarkSettings()
+}
+
+public struct WatermarkColor: Equatable, Sendable {
+    public var red: CGFloat
+    public var green: CGFloat
+    public var blue: CGFloat
+
+    public init(red: CGFloat, green: CGFloat, blue: CGFloat) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+    }
+
+    public static let white = WatermarkColor(red: 1, green: 1, blue: 1)
 }
 
 public enum SubjectKind: String, Sendable {

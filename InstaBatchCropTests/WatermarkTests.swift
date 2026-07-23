@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import ImageIO
 import Testing
 @testable import InstaBatchCropCore
 
@@ -34,7 +35,26 @@ struct WatermarkTests {
         let renderer = WatermarkRenderer()
         let rendered = renderer.render(
             on: base,
-            settings: WatermarkSettings(isEnabled: true, text: "VISIBLE", position: .center, opacity: 1, size: 54, margin: 12)
+            settings: WatermarkSettings(
+                isEnabled: true,
+                text: "VISIBLE",
+                position: .center,
+                color: WatermarkColor(red: 1, green: 0, blue: 0),
+                opacity: 1,
+                size: 54,
+                margin: 12
+            )
+        )
+        #expect(Self.pixelDifferenceCount(base, rendered) > 100)
+    }
+
+    @Test func transparentLogoWatermarkChangesPixels() throws {
+        let base = try Self.makeSolidImage(width: 420, height: 240)
+        let logoURL = try Self.makeTransparentLogo()
+        let renderer = WatermarkRenderer()
+        let rendered = renderer.render(
+            on: base,
+            settings: WatermarkSettings(isEnabled: true, text: "", imageURL: logoURL, position: .center, opacity: 0.9, size: 52, margin: 12)
         )
         #expect(Self.pixelDifferenceCount(base, rendered) > 100)
     }
@@ -72,5 +92,34 @@ struct WatermarkTests {
             CGContext(data: bytes.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)?.draw(second, in: CGRect(x: 0, y: 0, width: width, height: height))
         }
         return zip(firstData, secondData).filter { abs(Int($0) - Int($1)) > 8 }.count
+    }
+
+    private static func makeTransparentLogo() throws -> URL {
+        let width = 160
+        let height = 90
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("watermark-logo-\(UUID().uuidString).png")
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: width * 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            throw ProcessingError.cannotRender(url)
+        }
+        context.clear(CGRect(x: 0, y: 0, width: width, height: height))
+        context.setFillColor(CGColor(red: 0, green: 0.8, blue: 1, alpha: 0.75))
+        context.fillEllipse(in: CGRect(x: 20, y: 15, width: 120, height: 60))
+        guard let image = context.makeImage(),
+              let destination = CGImageDestinationCreateWithURL(url as CFURL, "public.png" as CFString, 1, nil) else {
+            throw ProcessingError.cannotWrite(url)
+        }
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination) else {
+            throw ProcessingError.cannotWrite(url)
+        }
+        return url
     }
 }

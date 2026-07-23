@@ -38,6 +38,8 @@ final class AppViewModel: ObservableObject {
     @Published var handToolEnabled = false
     @Published var watermarkEnabled = false
     @Published var watermarkText = "InstaBatch Crop"
+    @Published var watermarkImageURL: URL?
+    @Published var watermarkColor = Color.white
     @Published var watermarkPosition: WatermarkPosition = .bottomRight
     @Published var watermarkOpacity: CGFloat = 0.45
     @Published var watermarkSize: CGFloat = 42
@@ -153,7 +155,9 @@ final class AppViewModel: ObservableObject {
             watermark: WatermarkSettings(
                 isEnabled: watermarkEnabled,
                 text: watermarkText,
+                imageURL: watermarkImageURL,
                 position: watermarkPosition,
+                color: watermarkCoreColor(),
                 opacity: watermarkOpacity,
                 size: watermarkSize,
                 margin: watermarkMargin
@@ -176,6 +180,21 @@ final class AppViewModel: ObservableObject {
         } catch {
             updateStatus(for: image.id, status: error.localizedDescription)
         }
+    }
+
+    func selectWatermarkImage() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.allowedContentTypes = [.png, .jpeg, .tiff, .webP]
+        if panel.runModal() == .OK {
+            watermarkImageURL = panel.url
+            watermarkEnabled = true
+        }
+    }
+
+    func clearWatermarkImage() {
+        watermarkImageURL = nil
     }
 
     func applyManualCrop() {
@@ -247,6 +266,11 @@ final class AppViewModel: ObservableObject {
 
     private func clamp(_ value: CGFloat, lower: CGFloat, upper: CGFloat) -> CGFloat {
         min(max(lower, value), upper)
+    }
+
+    private func watermarkCoreColor() -> WatermarkColor {
+        let nsColor = NSColor(watermarkColor).usingColorSpace(.sRGB) ?? .white
+        return WatermarkColor(red: nsColor.redComponent, green: nsColor.greenComponent, blue: nsColor.blueComponent)
     }
 
     private func adjust(_ decision: CropDecision, imageSize: CGSize) -> CropDecision {
