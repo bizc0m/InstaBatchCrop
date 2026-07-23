@@ -142,10 +142,16 @@ struct ContentView: View {
             }
             ControlRow("Watermark") {
                 Toggle("Actif", isOn: $viewModel.watermarkEnabled)
-                TextField("Texte", text: $viewModel.watermarkText)
+                TextField("Texte", text: Binding(
+                    get: { viewModel.watermarkText },
+                    set: { viewModel.updateWatermarkText($0) }
+                ))
                     .textFieldStyle(.roundedBorder)
                     .frame(minWidth: 140, maxWidth: 260)
-                ColorPicker("", selection: $viewModel.watermarkColor)
+                ColorPicker("", selection: Binding(
+                    get: { viewModel.watermarkColor },
+                    set: { viewModel.updateWatermarkColor($0) }
+                ))
                     .labelsHidden()
                     .frame(width: 44)
                 Button("Logo") {
@@ -190,6 +196,17 @@ struct ContentView: View {
                 .frame(minWidth: 120, maxWidth: 240)
             }
         }
+        .onChange(of: viewModel.cropMode) { _, _ in viewModel.requestPreviewRefresh() }
+        .onChange(of: viewModel.fallbackMode) { _, _ in viewModel.requestPreviewRefresh() }
+        .onChange(of: viewModel.margin) { _, _ in viewModel.requestPreviewRefresh() }
+        .onChange(of: viewModel.jpegQuality) { _, _ in viewModel.requestPreviewRefresh() }
+        .onChange(of: viewModel.debugOverlay) { _, _ in viewModel.requestPreviewRefresh() }
+        .onChange(of: viewModel.exportType) { _, _ in viewModel.requestPreviewRefresh() }
+        .onChange(of: viewModel.watermarkEnabled) { _, _ in viewModel.requestPreviewRefresh() }
+        .onChange(of: viewModel.watermarkPosition) { _, _ in viewModel.requestPreviewRefresh() }
+        .onChange(of: viewModel.watermarkOpacity) { _, _ in viewModel.requestPreviewRefresh() }
+        .onChange(of: viewModel.watermarkSize) { _, _ in viewModel.requestPreviewRefresh() }
+        .onChange(of: viewModel.watermarkMargin) { _, _ in viewModel.requestPreviewRefresh() }
     }
 
     private var preview: some View {

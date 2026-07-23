@@ -17,33 +17,34 @@ final class AppViewModel: ObservableObject {
             } else if primarySelectedID == nil {
                 primarySelectedID = selectedIDs.first
             }
+            schedulePreviewRefresh()
         }
     }
-    @Published var selectedFormats: Set<OutputFormat> = [.portrait4x5, .square]
-    @Published var cropMode: CropMode = .natural
-    @Published var fallbackMode: FallbackMode = .blurredBackground
-    @Published var margin: CGFloat = 0.14
+    @Published var selectedFormats: Set<OutputFormat> = [.portrait4x5, .square] { didSet { schedulePreviewRefresh() } }
+    @Published var cropMode: CropMode = .natural { didSet { schedulePreviewRefresh() } }
+    @Published var fallbackMode: FallbackMode = .blurredBackground { didSet { schedulePreviewRefresh() } }
+    @Published var margin: CGFloat = 0.14 { didSet { schedulePreviewRefresh() } }
     @Published var jpegQuality: CGFloat = 0.92
     @Published var preserveMetadata = false
-    @Published var debugOverlay = false
+    @Published var debugOverlay = false { didSet { schedulePreviewRefresh() } }
     @Published var exportType: ExportFileType = .jpeg
     @Published var progress: Double = 0
     @Published var isProcessing = false
     @Published var results: [BatchResult] = []
     @Published var afterPreview: NSImage?
     @Published var previewDecision: CropDecision?
-    @Published var manualOffsetX: CGFloat = 0
-    @Published var manualOffsetY: CGFloat = 0
-    @Published var manualZoom: CGFloat = 1
+    @Published var manualOffsetX: CGFloat = 0 { didSet { schedulePreviewRefresh() } }
+    @Published var manualOffsetY: CGFloat = 0 { didSet { schedulePreviewRefresh() } }
+    @Published var manualZoom: CGFloat = 1 { didSet { schedulePreviewRefresh() } }
     @Published var handToolEnabled = false
-    @Published var watermarkEnabled = false
-    @Published var watermarkText = "InstaBatch Crop"
-    @Published var watermarkImageURL: URL?
-    @Published var watermarkColor = Color.white
-    @Published var watermarkPosition: WatermarkPosition = .bottomRight
-    @Published var watermarkOpacity: CGFloat = 0.45
-    @Published var watermarkSize: CGFloat = 42
-    @Published var watermarkMargin: CGFloat = 48
+    @Published var watermarkEnabled = false { didSet { schedulePreviewRefresh() } }
+    @Published var watermarkText = "InstaBatch Crop" { didSet { schedulePreviewRefresh() } }
+    @Published var watermarkImageURL: URL? { didSet { schedulePreviewRefresh() } }
+    @Published var watermarkColor = Color.white { didSet { schedulePreviewRefresh() } }
+    @Published var watermarkPosition: WatermarkPosition = .bottomRight { didSet { schedulePreviewRefresh() } }
+    @Published var watermarkOpacity: CGFloat = 0.45 { didSet { schedulePreviewRefresh() } }
+    @Published var watermarkSize: CGFloat = 42 { didSet { schedulePreviewRefresh() } }
+    @Published var watermarkMargin: CGFloat = 48 { didSet { schedulePreviewRefresh() } }
 
     private let processor = BatchProcessor()
     private let analyzer = VisionSubjectAnalyzer()
@@ -52,6 +53,7 @@ final class AppViewModel: ObservableObject {
     private var manualDecisions: [String: CropDecision] = [:]
     private var primarySelectedID: ImportedImage.ID?
     private var lastPreviewAnalysis: (url: URL, imageSize: CGSize, observations: [SubjectObservation], format: OutputFormat)?
+    private var previewRefreshTask: Task<Void, Never>?
 
     var selectedImage: ImportedImage? {
         if let primarySelectedID,
@@ -67,6 +69,7 @@ final class AppViewModel: ObservableObject {
         } else {
             selectedFormats.remove(format)
         }
+        requestPreviewRefresh()
     }
 
     func selectFiles() {
@@ -182,6 +185,16 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    func schedulePreviewRefresh(delayMilliseconds: UInt64 = 180) {
+        guard selectedImage != nil else { return }
+        previewRefreshTask?.cancel()
+        previewRefreshTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: delayMilliseconds * 1_000_000)
+            guard !Task.isCancelled else { return }
+            await self?.generatePreview()
+        }
+    }
+
     func selectWatermarkImage() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
@@ -190,11 +203,27 @@ final class AppViewModel: ObservableObject {
         if panel.runModal() == .OK {
             watermarkImageURL = panel.url
             watermarkEnabled = true
+            requestPreviewRefresh()
         }
     }
 
     func clearWatermarkImage() {
         watermarkImageURL = nil
+        requestPreviewRefresh()
+    }
+
+    func updateWatermarkText(_ text: String) {
+        watermarkText = text
+        requestPreviewRefresh()
+    }
+
+    func updateWatermarkColor(_ color: Color) {
+        watermarkColor = color
+        requestPreviewRefresh()
+    }
+
+    func requestPreviewRefresh() {
+        schedulePreviewRefresh(delayMilliseconds: 160)
     }
 
     func applyManualCrop() {
