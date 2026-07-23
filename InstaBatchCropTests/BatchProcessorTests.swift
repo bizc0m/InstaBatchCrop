@@ -22,7 +22,17 @@ struct BatchProcessorTests {
             urls: [first, second],
             formats: [.portrait4x5, .square],
             outputDirectory: output,
-            settings: CropSettings.standard
+            settings: CropSettings(
+                mode: .natural,
+                fallbackMode: .blurredBackground,
+                margin: 0.14,
+                jpegQuality: 0.92,
+                preserveMetadata: false,
+                exportType: .jpeg,
+                debugOverlay: false,
+                qualityThreshold: 0.62,
+                watermark: WatermarkSettings(isEnabled: true, text: "TEST", position: .bottomRight, opacity: 0.6, size: 36, margin: 24)
+            )
         ) { _, _ in }
 
         #expect(results.count == 4)

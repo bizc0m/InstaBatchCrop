@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0-dev - 2026-07-23
+
+- Ajout selection multiple dans la file d'images.
+- Ajout suppression des images selectionnees sans supprimer les fichiers sources.
+- Ajout bouton `Nettoyer la file`.
+- Ajout outil main pour deplacer directement le cadrage dans l'apercu apres.
+- Renommage du controle `JPEG` en `Compression`.
+- Ajout watermark texte optionnel au rendu final.
+- Ajout `WatermarkRenderer` dans le core.
+- Tests portes a 12, avec integration batch watermark.
+
 ## 0.7 - 2026-07-23
 
 - Base MVP validee par usage local.

@@ -86,6 +86,53 @@ public enum ExportFileType: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+public enum WatermarkPosition: String, CaseIterable, Identifiable, Sendable {
+    case bottomRight
+    case bottomLeft
+    case topRight
+    case topLeft
+    case center
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .bottomRight: "Bas droite"
+        case .bottomLeft: "Bas gauche"
+        case .topRight: "Haut droite"
+        case .topLeft: "Haut gauche"
+        case .center: "Centre"
+        }
+    }
+}
+
+public struct WatermarkSettings: Equatable, Sendable {
+    public var isEnabled: Bool
+    public var text: String
+    public var position: WatermarkPosition
+    public var opacity: CGFloat
+    public var size: CGFloat
+    public var margin: CGFloat
+
+    public init(
+        isEnabled: Bool = false,
+        text: String = "InstaBatch Crop",
+        position: WatermarkPosition = .bottomRight,
+        opacity: CGFloat = 0.45,
+        size: CGFloat = 42,
+        margin: CGFloat = 48
+    ) {
+        self.isEnabled = isEnabled
+        self.text = text
+        self.position = position
+        self.opacity = opacity
+        self.size = size
+        self.margin = margin
+    }
+
+    public static let disabled = WatermarkSettings()
+}
+
 public enum SubjectKind: String, Sendable {
     case face
     case person
@@ -127,6 +174,7 @@ public struct CropSettings: Sendable {
     public var exportType: ExportFileType
     public var debugOverlay: Bool
     public var qualityThreshold: CGFloat
+    public var watermark: WatermarkSettings
 
     public init(
         mode: CropMode,
@@ -136,7 +184,8 @@ public struct CropSettings: Sendable {
         preserveMetadata: Bool,
         exportType: ExportFileType,
         debugOverlay: Bool,
-        qualityThreshold: CGFloat
+        qualityThreshold: CGFloat,
+        watermark: WatermarkSettings = .disabled
     ) {
         self.mode = mode
         self.fallbackMode = fallbackMode
@@ -146,6 +195,7 @@ public struct CropSettings: Sendable {
         self.exportType = exportType
         self.debugOverlay = debugOverlay
         self.qualityThreshold = qualityThreshold
+        self.watermark = watermark
     }
 
     public static let standard = CropSettings(
@@ -156,7 +206,8 @@ public struct CropSettings: Sendable {
         preserveMetadata: false,
         exportType: .jpeg,
         debugOverlay: false,
-        qualityThreshold: 0.62
+        qualityThreshold: 0.62,
+        watermark: .disabled
     )
 }
 

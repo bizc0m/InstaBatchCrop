@@ -5,3 +5,4 @@
 [08:36] ACTION | xcodebuild | build succeeded | warning CoreSimulator obsolete hors cible macOS
 [08:39] ACTION | VERSION | version 0.7 validee utilisateur | 
 [09:02] ACTION | dist/0.7/InstaBatch Crop V0.7.app | bundle autonome signe et lance via open | 
+[09:09] ACTION | v1.0-dev | selection multiple, nettoyage file, main preview, compression, watermark | swift test 12 passes; xcodebuild succeeded

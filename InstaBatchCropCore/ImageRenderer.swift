@@ -17,6 +17,7 @@ public struct RenderedImage {
 
 public struct ImageRenderer: Sendable {
     private let context = CIContext(options: [.useSoftwareRenderer: false])
+    private let watermarkRenderer = WatermarkRenderer()
 
     public init() {}
 
@@ -52,14 +53,16 @@ public struct ImageRenderer: Sendable {
             result = scaleToFill(cropped, outputExtent: outputExtent)
         }
 
+        let watermarked = watermarkRenderer.render(on: result, outputExtent: outputExtent, settings: settings.watermark)
+
         let final = settings.debugOverlay ? drawDebugOverlay(
-            on: result,
+            on: watermarked,
             outputExtent: outputExtent,
             decision: decision,
             observations: observations,
             sourceExtent: sourceExtent,
             cropRect: decision.usesFallback ? sourceExtent : decision.cropRect
-        ) : result
+        ) : watermarked
 
         guard let cgImage = context.createCGImage(final, from: outputExtent) else {
             throw ProcessingError.cannotRender(inputURL)

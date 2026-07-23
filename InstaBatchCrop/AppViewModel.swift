@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 @MainActor
 final class AppViewModel: ObservableObject {
     @Published var images: [ImportedImage] = []
-    @Published var selectedID: ImportedImage.ID?
+    @Published var selectedIDs: Set<ImportedImage.ID> = []
     @Published var selectedFormats: Set<OutputFormat> = [.portrait4x5, .square]
     @Published var cropMode: CropMode = .natural
     @Published var fallbackMode: FallbackMode = .blurredBackground
@@ -24,6 +24,14 @@ final class AppViewModel: ObservableObject {
     @Published var manualOffsetX: CGFloat = 0
     @Published var manualOffsetY: CGFloat = 0
     @Published var manualZoom: CGFloat = 1
+    @Published var handToolEnabled = false
+    @Published var previewDragOffset: CGSize = .zero
+    @Published var watermarkEnabled = false
+    @Published var watermarkText = "InstaBatch Crop"
+    @Published var watermarkPosition: WatermarkPosition = .bottomRight
+    @Published var watermarkOpacity: CGFloat = 0.45
+    @Published var watermarkSize: CGFloat = 42
+    @Published var watermarkMargin: CGFloat = 48
 
     private let processor = BatchProcessor()
     private let analyzer = VisionSubjectAnalyzer()
@@ -32,7 +40,10 @@ final class AppViewModel: ObservableObject {
     private var manualDecisions: [String: CropDecision] = [:]
 
     var selectedImage: ImportedImage? {
-        images.first { $0.id == selectedID }
+        if let selected = images.first(where: { selectedIDs.contains($0.id) }) {
+            return selected
+        }
+        return images.first
     }
 
     func setFormat(_ format: OutputFormat, enabled: Bool) {
@@ -84,7 +95,31 @@ final class AppViewModel: ObservableObject {
             ImportedImage(url: $0, preview: NSImage(contentsOf: $0), status: "Pret")
         }
         images.append(contentsOf: newImages)
-        selectedID = selectedID ?? images.first?.id
+        if selectedIDs.isEmpty, let first = images.first?.id {
+            selectedIDs = [first]
+        }
+    }
+
+    func removeSelectedImages() {
+        guard !selectedIDs.isEmpty else { return }
+        let removedPaths = Set(images.filter { selectedIDs.contains($0.id) }.map(\.url.path))
+        images.removeAll { selectedIDs.contains($0.id) }
+        manualDecisions = manualDecisions.filter { key, _ in
+            !removedPaths.contains(where: { key.hasPrefix("\($0)|") })
+        }
+        selectedIDs = images.first.map { [$0.id] } ?? []
+        afterPreview = nil
+        previewDecision = nil
+    }
+
+    func clearQueue() {
+        images.removeAll()
+        selectedIDs.removeAll()
+        manualDecisions.removeAll()
+        results.removeAll()
+        afterPreview = nil
+        previewDecision = nil
+        progress = 0
     }
 
     func settings() -> CropSettings {
@@ -96,7 +131,15 @@ final class AppViewModel: ObservableObject {
             preserveMetadata: preserveMetadata,
             exportType: exportType,
             debugOverlay: debugOverlay,
-            qualityThreshold: 0.62
+            qualityThreshold: 0.62,
+            watermark: WatermarkSettings(
+                isEnabled: watermarkEnabled,
+                text: watermarkText,
+                position: watermarkPosition,
+                opacity: watermarkOpacity,
+                size: watermarkSize,
+                margin: watermarkMargin
+            )
         )
     }
 
@@ -125,6 +168,14 @@ final class AppViewModel: ObservableObject {
         updateStatus(for: image.id, status: "Correction manuelle")
     }
 
+    func applyPreviewDrag(_ translation: CGSize, previewSize: CGSize) async {
+        guard previewSize.width > 1, previewSize.height > 1 else { return }
+        manualOffsetX = clamp(manualOffsetX + translation.width / previewSize.width * 2.0, lower: -1, upper: 1)
+        manualOffsetY = clamp(manualOffsetY - translation.height / previewSize.height * 2.0, lower: -1, upper: 1)
+        previewDragOffset = .zero
+        await generatePreview()
+    }
+
     func processAll() async {
         guard !images.isEmpty else { return }
         isProcessing = true
@@ -150,6 +201,10 @@ final class AppViewModel: ObservableObject {
     private func updateStatus(for id: ImportedImage.ID, status: String) {
         guard let index = images.firstIndex(where: { $0.id == id }) else { return }
         images[index].status = status
+    }
+
+    private func clamp(_ value: CGFloat, lower: CGFloat, upper: CGFloat) -> CGFloat {
+        min(max(lower, value), upper)
     }
 
     private func adjust(_ decision: CropDecision, imageSize: CGSize) -> CropDecision {

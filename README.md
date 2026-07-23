@@ -4,11 +4,11 @@ Application macOS native SwiftUI pour adapter des photos en lot aux formats Inst
 
 ## Version
 
-0.7
+1.0-dev
 
 ## Statut
 
-MVP fonctionnel compile et teste localement.
+Version de developpement basee sur v0.7, compilee et testee localement.
 
 - Import fichiers, dossier et glisser-deposer.
 - Analyse locale Vision: visages, corps humains, animaux quand disponible, saillance attention/objectness.
@@ -22,6 +22,9 @@ MVP fonctionnel compile et teste localement.
 - Rapport final dans l'interface.
 - Mode debug avec bounding boxes.
 - Correction manuelle par offset/zoom sur l'image selectionnee et reappliquee au batch.
+- Selection multiple dans la file, suppression des images selectionnees et nettoyage complet de la file.
+- Deplacement direct du cadrage dans l'apercu apres avec outil main.
+- Watermark texte optionnel applique au rendu final.
 
 ## Compilation
 
@@ -42,7 +45,7 @@ Dans Xcode: `File > Open...` puis ouvrir le dossier `InstaBatchCrop` ou `Package
 3. Choisir un ou plusieurs formats.
 4. Regler mode, marge, secours, type d'export et qualite.
 5. Selectionner une image et cliquer `Generer apercu`.
-6. Ajuster X/Y/Zoom si necessaire, puis `Appliquer correction manuelle`.
+6. Activer l'outil main pour deplacer le cadrage directement dans l'apercu apres, ou ajuster X/Y/Zoom, puis `Appliquer correction manuelle`.
 7. Cliquer `Traiter toutes les photos`.
 
 Les sources ne sont jamais ecrasees. Un dossier `InstaBatchCrop_Export_YYYY-MM-DD_HHMMSS` est cree pres des images sources.
@@ -54,6 +57,7 @@ Les sources ne sont jamais ecrasees. Un dossier `InstaBatchCrop_Export_YYYY-MM-D
 - `VisionSubjectAnalyzer.swift`: extraction Vision locale des zones d'interet.
 - `CropEngine.swift`: calcul pur du meilleur cadrage, sans dependance UI.
 - `ImageRenderer.swift`: rendu Core Image, fond de secours, overlay debug, export ImageIO.
+- `WatermarkRenderer.swift`: rendu local du watermark texte et calcul de placement.
 - `BatchProcessor.swift`: orchestration parallele et nommage des fichiers.
 - `InstaBatchCropTests`: tests unitaires et integration batch.
 
@@ -80,6 +84,8 @@ Tests couverts:
 - basse resolution;
 - orientation EXIF cote repere pixel;
 - integration batch avec ecriture et verification de dimensions.
+- configuration et placement du watermark;
+- integration batch avec watermark active.
 
 Commande validee:
 
@@ -87,7 +93,15 @@ Commande validee:
 swift test
 ```
 
-Resultat local: 9 tests passes.
+Resultat local: 12 tests passes.
+
+## Compression
+
+Le controle `Compression` pilote la qualite transmise a ImageIO. Il est significatif pour JPEG. PNG est sans perte et ignore cette notion de qualite avec les encodeurs systeme. WebP peut l'interpreter selon le support ImageIO disponible sur la version de macOS.
+
+## Watermark
+
+Le watermark est local et optionnel. La version actuelle supporte un texte, une position, une opacite, une taille et une marge. La logique est separee dans `WatermarkRenderer` pour permettre de remplacer plus tard le texte par une image ou un logo.
 
 ## Photos de test
 
@@ -105,7 +119,8 @@ swift scripts/generate_test_photos.swift
 - La detection de "tete" hors visage visible est approximative: elle repose sur corps humain, visage et zone de saillance.
 - Le mode transparent est prevu dans le modele d'extension mais non expose dans ce MVP, car JPEG ne supporte pas l'alpha et l'UX doit differencier PNG/WebP.
 - L'application est livree comme package Swift Xcode-compatible, pas encore comme archive signee/notarisee `.app`.
-- La correction manuelle est volontairement simple: offset X/Y et zoom du cadrage retenu.
+- La correction manuelle reste volontairement simple: offset X/Y, zoom et deplacement direct du cadrage retenu.
+- Le watermark texte n'integre pas encore de logo image.
 
 ## Plan d'amelioration
 

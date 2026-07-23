@@ -29,9 +29,23 @@ struct ContentView: View {
             DropZone()
                 .frame(height: 110)
 
-            Text("Images")
-                .font(.headline)
-            List(selection: $viewModel.selectedID) {
+            HStack {
+                Text("Images")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    viewModel.removeSelectedImages()
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .help("Retirer les images selectionnees")
+                .disabled(viewModel.selectedIDs.isEmpty)
+                Button("Nettoyer la file") {
+                    viewModel.clearQueue()
+                }
+                .disabled(viewModel.images.isEmpty)
+            }
+            List(selection: $viewModel.selectedIDs) {
                 ForEach(viewModel.images) { image in
                     HStack {
                         if let preview = image.preview {
@@ -114,9 +128,34 @@ struct ContentView: View {
                 Toggle("Metadonnees", isOn: $viewModel.preserveMetadata)
             }
             GridRow {
-                Text("JPEG")
+                Text("Compression")
                 Slider(value: $viewModel.jpegQuality, in: 0.5...1.0)
                 Toggle("Debug boxes", isOn: $viewModel.debugOverlay)
+            }
+            GridRow {
+                Text("Watermark")
+                Toggle("Actif", isOn: $viewModel.watermarkEnabled)
+                TextField("Texte", text: $viewModel.watermarkText)
+                    .textFieldStyle(.roundedBorder)
+            }
+            GridRow {
+                Text("Position")
+                Picker("", selection: $viewModel.watermarkPosition) {
+                    ForEach(WatermarkPosition.allCases) { Text($0.displayName).tag($0) }
+                }
+                .pickerStyle(.menu)
+                HStack {
+                    Text("Opacite")
+                    Slider(value: $viewModel.watermarkOpacity, in: 0.05...1.0)
+                }
+            }
+            GridRow {
+                Text("Watermark taille")
+                Slider(value: $viewModel.watermarkSize, in: 12...120)
+                HStack {
+                    Text("Marge")
+                    Slider(value: $viewModel.watermarkMargin, in: 0...160)
+                }
             }
         }
     }
@@ -131,6 +170,13 @@ struct ContentView: View {
                     Task { await viewModel.generatePreview() }
                 }
                 .disabled(viewModel.selectedImage == nil)
+                Button {
+                    viewModel.handToolEnabled.toggle()
+                } label: {
+                    Image(systemName: "hand.draw")
+                }
+                .help("Deplacer le cadrage dans l'apercu apres")
+                .buttonStyle(.bordered)
                 Button("Appliquer correction manuelle") {
                     viewModel.applyManualCrop()
                 }
@@ -138,7 +184,14 @@ struct ContentView: View {
             }
             HStack(spacing: 16) {
                 PreviewBox(title: "Avant", image: viewModel.selectedImage?.preview)
-                PreviewBox(title: "Apres", image: viewModel.afterPreview)
+                DraggablePreviewBox(
+                    title: "Apres",
+                    image: viewModel.afterPreview,
+                    isHandEnabled: viewModel.handToolEnabled,
+                    dragOffset: $viewModel.previewDragOffset
+                ) { translation, size in
+                    Task { await viewModel.applyPreviewDrag(translation, previewSize: size) }
+                }
             }
             if let decision = viewModel.previewDecision {
                 Text("Score \(String(format: "%.2f", Double(decision.score))) - \(decision.reason)")
@@ -211,6 +264,49 @@ struct PreviewBox: View {
             }
             .frame(height: 280)
             .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+}
+
+struct DraggablePreviewBox: View {
+    let title: String
+    let image: NSImage?
+    let isHandEnabled: Bool
+    @Binding var dragOffset: CGSize
+    let onDragEnded: (CGSize, CGSize) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            HStack {
+                Text(title).font(.caption)
+                if isHandEnabled {
+                    Image(systemName: "hand.draw")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                }
+            }
+            GeometryReader { proxy in
+                ZStack {
+                    Rectangle().fill(.quaternary)
+                    if let image {
+                        Image(nsImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .padding(6)
+                            .offset(dragOffset)
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .contentShape(Rectangle())
+                .gesture(isHandEnabled ? DragGesture()
+                    .onChanged { value in
+                        dragOffset = value.translation
+                    }
+                    .onEnded { value in
+                        onDragEnded(value.translation, proxy.size)
+                    } : nil)
+            }
+            .frame(height: 280)
         }
     }
 }
