@@ -136,4 +136,20 @@ struct CropEngineTests {
         #expect(abs((moved.cropRect.width / moved.cropRect.height) - (4.0 / 5.0)) < 0.01)
         #expect(moved.usesFallback == false)
     }
+
+    @Test func manualFocusAnnotationsHavePriorityWeight() {
+        let point = FocusAnnotation(
+            kind: .point,
+            rect: CGRect(x: 620, y: 360, width: 80, height: 80)
+        ).observation(in: CGSize(width: 1200, height: 900))
+        let zone = FocusAnnotation(
+            kind: .zone,
+            rect: CGRect(x: 80, y: 120, width: 260, height: 360)
+        ).observation(in: CGSize(width: 1200, height: 900))
+
+        #expect(point.kind == .manualPoint)
+        #expect(zone.kind == .manualZone)
+        #expect(point.weight > SubjectObservation(rect: .zero, confidence: 1, kind: .face).weight)
+        #expect(zone.weight > point.weight)
+    }
 }

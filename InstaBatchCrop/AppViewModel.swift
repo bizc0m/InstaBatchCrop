@@ -4,8 +4,33 @@ import InstaBatchCropCore
 import SwiftUI
 import UniformTypeIdentifiers
 
+enum FocusTool: String, CaseIterable, Identifiable {
+    case none
+    case point
+    case zone
+
+    var id: String { rawValue }
+
+    func displayName(language: AppLanguage) -> String {
+        switch self {
+        case .none: language == .fr ? "Aucun" : "None"
+        case .point: language == .fr ? "Point" : "Point"
+        case .zone: language == .fr ? "Zone" : "Area"
+        }
+    }
+}
+
+enum AppLanguage: String, CaseIterable, Identifiable {
+    case fr = "FR"
+    case en = "EN"
+
+    var id: String { rawValue }
+    var displayName: String { rawValue }
+}
+
 @MainActor
 final class AppViewModel: ObservableObject {
+    @Published var language: AppLanguage = .fr
     @Published var images: [ImportedImage] = []
     @Published var selectedIDs: Set<ImportedImage.ID> = [] {
         didSet {
@@ -35,11 +60,12 @@ final class AppViewModel: ObservableObject {
     @Published var previewDecision: CropDecision?
     @Published var previewFormat: OutputFormat = .portrait4x5
     @Published var previewImageSize: CGSize = .zero
-    @Published var manualOffsetX: CGFloat = 0 { didSet { schedulePreviewRefresh() } }
-    @Published var manualOffsetY: CGFloat = 0 { didSet { schedulePreviewRefresh() } }
-    @Published var manualZoom: CGFloat = 1 { didSet { schedulePreviewRefresh() } }
+    @Published var manualOffsetX: CGFloat = 0 { didSet { manualSliderChanged() } }
+    @Published var manualOffsetY: CGFloat = 0 { didSet { manualSliderChanged() } }
+    @Published var manualZoom: CGFloat = 1 { didSet { manualSliderChanged() } }
     @Published var handToolEnabled = false
     @Published var isDraggingPreview = false
+    @Published var focusTool: FocusTool = .none
     @Published var watermarkEnabled = false { didSet { schedulePreviewRefresh() } }
     @Published var watermarkText = "InstaBatch Crop" { didSet { schedulePreviewRefresh() } }
     @Published var watermarkImageURL: URL? { didSet { schedulePreviewRefresh() } }
@@ -54,6 +80,7 @@ final class AppViewModel: ObservableObject {
     private let engine = CropEngine()
     private let renderer = ImageRenderer()
     private var manualDecisions: [String: CropDecision] = [:]
+    private var focusAnnotations: [String: [FocusAnnotation]] = [:]
     private var primarySelectedID: ImportedImage.ID?
     private var lastPreviewAnalysis: (url: URL, imageSize: CGSize, observations: [SubjectObservation], format: OutputFormat)?
     private var previewRefreshTask: Task<Void, Never>?
@@ -64,6 +91,11 @@ final class AppViewModel: ObservableObject {
             return selected
         }
         return images.first
+    }
+
+    var currentFocusAnnotations: [FocusAnnotation] {
+        guard let selectedImage else { return [] }
+        return focusAnnotations[selectedImage.url.path] ?? []
     }
 
     func setFormat(_ format: OutputFormat, enabled: Bool) {
@@ -176,10 +208,13 @@ final class AppViewModel: ObservableObject {
         let format = selectedFormats.sorted { $0.rawValue < $1.rawValue }.first ?? .portrait4x5
         do {
             let analysis = try analyzer.analyze(imageURL: image.url)
-            let automatic = engine.decide(imageSize: analysis.size, observations: analysis.observations, target: format, settings: settings())
+            let priorityObservations = focusObservations(for: image.url, imageSize: analysis.size)
+            let decisionObservations = priorityObservations.isEmpty ? analysis.observations : priorityObservations
+            let automatic = engine.decide(imageSize: analysis.size, observations: decisionObservations, target: format, settings: settings())
             let key = BatchProcessor.overrideKey(inputURL: image.url, format: format)
             let decision = manualDecisions[key] ?? adjust(automatic, imageSize: analysis.size)
-            let rendered = try renderer.render(inputURL: image.url, target: format, decision: decision, observations: analysis.observations, settings: settings())
+            storeManualDecisionIfNeeded(decision, key: key)
+            let rendered = try renderer.render(inputURL: image.url, target: format, decision: decision, observations: analysis.observations + priorityObservations, settings: settings())
             afterPreview = NSImage(cgImage: rendered.image, size: format.pixelSize)
             previewDecision = decision
             previewFormat = format
@@ -231,6 +266,12 @@ final class AppViewModel: ObservableObject {
         schedulePreviewRefresh(delayMilliseconds: 160)
     }
 
+    private func manualSliderChanged() {
+        guard selectedImage != nil else { return }
+        invalidateCurrentManualDecision()
+        schedulePreviewRefresh()
+    }
+
     func applyManualCrop() {
         guard let image = selectedImage, var decision = previewDecision else { return }
         let format = selectedFormats.sorted { $0.rawValue < $1.rawValue }.first ?? .portrait4x5
@@ -238,6 +279,16 @@ final class AppViewModel: ObservableObject {
         decision.reason = "Correction manuelle appliquee"
         manualDecisions[BatchProcessor.overrideKey(inputURL: image.url, format: format)] = decision
         updateStatus(for: image.id, status: "Correction manuelle")
+    }
+
+    func resetManualCorrection() {
+        guard let image = selectedImage else { return }
+        manualOffsetX = 0
+        manualOffsetY = 0
+        manualZoom = 1
+        removeManualDecisions(for: image.url)
+        updateStatus(for: image.id, status: "Correction remise a zero")
+        requestPreviewRefresh()
     }
 
     func applyPreviewDrag(_ translation: CGSize, previewSize: CGSize) {
@@ -264,17 +315,53 @@ final class AppViewModel: ObservableObject {
         Task { await renderCurrentManualPreview() }
     }
 
+    func selectPreviousImage() {
+        selectRelativeImage(offset: -1)
+    }
+
+    func selectNextImage() {
+        selectRelativeImage(offset: 1)
+    }
+
+    func addFocusPoint(_ point: CGPoint, imageSize: CGSize) {
+        guard let image = selectedImage else { return }
+        let diameter = max(18, min(imageSize.width, imageSize.height) * 0.08)
+        let rect = CGRect(
+            x: point.x - diameter / 2,
+            y: point.y - diameter / 2,
+            width: diameter,
+            height: diameter
+        )
+        addFocusAnnotation(FocusAnnotation(kind: .point, rect: rect), for: image.url, imageSize: imageSize)
+    }
+
+    func addFocusZone(_ rect: CGRect, imageSize: CGSize) {
+        guard let image = selectedImage else { return }
+        let normalized = rect.standardized
+        guard normalized.width > 6, normalized.height > 6 else { return }
+        addFocusAnnotation(FocusAnnotation(kind: .zone, rect: normalized), for: image.url, imageSize: imageSize)
+    }
+
+    func clearFocusAnnotationsForSelection() {
+        guard let image = selectedImage else { return }
+        focusAnnotations[image.url.path] = []
+        removeManualDecisions(for: image.url)
+        updateStatus(for: image.id, status: "Interets effaces")
+        requestPreviewRefresh()
+    }
+
     private func renderCurrentManualPreview() async {
         guard let image = selectedImage,
               let decision = previewDecision,
               let analysis = lastPreviewAnalysis,
               analysis.url == image.url else { return }
+        let priorityObservations = focusObservations(for: image.url, imageSize: analysis.imageSize)
         do {
             let rendered = try renderer.render(
                 inputURL: image.url,
                 target: analysis.format,
                 decision: decision,
-                observations: analysis.observations,
+                observations: analysis.observations + priorityObservations,
                 settings: settings()
             )
             afterPreview = NSImage(cgImage: rendered.image, size: analysis.format.pixelSize)
@@ -291,7 +378,8 @@ final class AppViewModel: ObservableObject {
         let urls = images.map(\.url)
         let outputDirectory = BatchProcessor.makeExportDirectory(near: urls)
         let activeSettings = settings()
-        results = await processor.process(urls: urls, formats: selectedFormats, outputDirectory: outputDirectory, settings: activeSettings, decisionOverrides: manualDecisions) { done, total in
+        let activeFocus = await buildFocusObservationMap(for: images)
+        results = await processor.process(urls: urls, formats: selectedFormats, outputDirectory: outputDirectory, settings: activeSettings, decisionOverrides: manualDecisions, focusObservations: activeFocus) { done, total in
             await MainActor.run {
                 self.progress = Double(done) / Double(total)
             }
@@ -310,6 +398,59 @@ final class AppViewModel: ObservableObject {
         images[index].status = status
     }
 
+    private func selectRelativeImage(offset: Int) {
+        guard !images.isEmpty else { return }
+        let currentIndex = selectedImage.flatMap { selected in images.firstIndex(where: { $0.id == selected.id }) } ?? 0
+        let nextIndex = min(max(0, currentIndex + offset), images.count - 1)
+        let id = images[nextIndex].id
+        primarySelectedID = id
+        selectedIDs = [id]
+        requestPreviewRefresh()
+    }
+
+    private func addFocusAnnotation(_ annotation: FocusAnnotation, for url: URL, imageSize: CGSize) {
+        let imageRect = CGRect(origin: .zero, size: imageSize)
+        let safeRect = annotation.rect.intersection(imageRect)
+        guard !safeRect.isNull, !safeRect.isEmpty else { return }
+        focusAnnotations[url.path, default: []].append(FocusAnnotation(kind: annotation.kind, rect: safeRect))
+        removeManualDecisions(for: url)
+        if let image = selectedImage {
+            updateStatus(for: image.id, status: "\(focusAnnotations[url.path]?.count ?? 0) interet(s)")
+        }
+        requestPreviewRefresh()
+    }
+
+    private func removeManualDecisions(for url: URL) {
+        manualDecisions = manualDecisions.filter { key, _ in
+            !key.hasPrefix("\(url.path)|")
+        }
+    }
+
+    private func invalidateCurrentManualDecision() {
+        guard let image = selectedImage else { return }
+        let format = selectedFormats.sorted { $0.rawValue < $1.rawValue }.first ?? .portrait4x5
+        manualDecisions.removeValue(forKey: BatchProcessor.overrideKey(inputURL: image.url, format: format))
+    }
+
+    private func storeManualDecisionIfNeeded(_ decision: CropDecision, key: String) {
+        guard manualOffsetX != 0 || manualOffsetY != 0 || manualZoom != 1 else { return }
+        manualDecisions[key] = decision
+    }
+
+    private func focusObservations(for url: URL, imageSize: CGSize) -> [SubjectObservation] {
+        (focusAnnotations[url.path] ?? []).map { $0.observation(in: imageSize) }
+    }
+
+    private func buildFocusObservationMap(for images: [ImportedImage]) async -> [String: [SubjectObservation]] {
+        var output: [String: [SubjectObservation]] = [:]
+        for image in images where !(focusAnnotations[image.url.path] ?? []).isEmpty {
+            if let analysis = try? analyzer.analyze(imageURL: image.url) {
+                output[image.url.path] = focusObservations(for: image.url, imageSize: analysis.size)
+            }
+        }
+        return output
+    }
+
     private func clamp(_ value: CGFloat, lower: CGFloat, upper: CGFloat) -> CGFloat {
         min(max(lower, value), upper)
     }
@@ -325,8 +466,8 @@ final class AppViewModel: ObservableObject {
         var rect = decision.cropRect
         let nextWidth = min(imageSize.width, rect.width / manualZoom)
         let nextHeight = min(imageSize.height, rect.height / manualZoom)
-        rect.origin.x = rect.midX - nextWidth / 2 + manualOffsetX * rect.width * 0.35
-        rect.origin.y = rect.midY - nextHeight / 2 + manualOffsetY * rect.height * 0.35
+        rect.origin.x = rect.midX - nextWidth / 2 + manualOffsetX * rect.width * 0.75
+        rect.origin.y = rect.midY - nextHeight / 2 + manualOffsetY * rect.height * 0.75
         rect.size = CGSize(width: nextWidth, height: nextHeight)
         rect.origin.x = min(max(0, rect.origin.x), imageSize.width - rect.width)
         rect.origin.y = min(max(0, rect.origin.y), imageSize.height - rect.height)

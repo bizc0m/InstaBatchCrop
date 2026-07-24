@@ -160,6 +160,8 @@ public enum SubjectKind: String, Sendable {
     case object
     case saliency
     case imageCenter
+    case manualPoint
+    case manualZone
 }
 
 public struct SubjectObservation: Equatable, Sendable {
@@ -175,6 +177,8 @@ public struct SubjectObservation: Equatable, Sendable {
 
     public var weight: CGFloat {
         switch kind {
+        case .manualZone: 5.0
+        case .manualPoint: 4.5
         case .face: 3.0
         case .person: 2.2
         case .animal: 2.0
@@ -182,6 +186,39 @@ public struct SubjectObservation: Equatable, Sendable {
         case .saliency: 1.1
         case .imageCenter: 0.6
         }
+    }
+}
+
+public enum FocusAnnotationKind: String, Sendable {
+    case point
+    case zone
+}
+
+public struct FocusAnnotation: Identifiable, Equatable, Sendable {
+    public var id: UUID
+    public var kind: FocusAnnotationKind
+    public var rect: CGRect
+
+    public init(id: UUID = UUID(), kind: FocusAnnotationKind, rect: CGRect) {
+        self.id = id
+        self.kind = kind
+        self.rect = rect
+    }
+
+    public func observation(in imageSize: CGSize) -> SubjectObservation {
+        let imageRect = CGRect(origin: .zero, size: imageSize)
+        let clamped = rect.intersection(imageRect)
+        let safeRect = clamped.isNull || clamped.isEmpty ? CGRect(
+            x: min(max(0, rect.midX - imageSize.width * 0.04), imageSize.width),
+            y: min(max(0, rect.midY - imageSize.height * 0.04), imageSize.height),
+            width: max(1, imageSize.width * 0.08),
+            height: max(1, imageSize.height * 0.08)
+        ).intersection(imageRect) : clamped
+        return SubjectObservation(
+            rect: safeRect,
+            confidence: 1,
+            kind: kind == .point ? .manualPoint : .manualZone
+        )
     }
 }
 

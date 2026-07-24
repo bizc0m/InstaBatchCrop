@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.0 - 2026-07-24
+
+- Version validee localement a partir de v1.7.
+- Interface FR/EN.
+- Points et zones d'interet manuels prioritaires.
+- Apercu export avec watermark visible.
+- Deplacement direct dans l'aperçu apres sans bouton main.
+- Corrections X/Y/Zoom auto-appliquees au batch.
+- Boutons fleches visibles pour deplacement horizontal/vertical.
+- Build macOS autonome `dist/2.0/InstaBatch Crop V2.0.app`.
+
+## 1.7 - 2026-07-24
+
+- Ajout des points d'interet manuels par photo.
+- Ajout des zones d'interet manuelles par photo.
+- Ajout navigation image precedente/suivante dans l'aperçu.
+- Les points/zones manuels deviennent prioritaires pour l'aperçu et le traitement batch.
+- Ajout overlays visuels des points/zones dans l'aperçu avant.
+- Suppression du besoin d'utiliser `Appliquer correction`: X/Y/Zoom et la main sont auto-appliques au batch.
+- Extension de l'amplitude X/Y/Zoom.
+- Correction de l'aperçu watermark dans la zone apres.
+- Remplacement des libelles X/Y par des icones fleche horizontale/verticale.
+- Ajout du selecteur d'interface FR/EN.
+- Ajout test de priorité des annotations manuelles.
+- Build macOS autonome `dist/1.7/InstaBatch Crop V1.7.app`.
+
 ## 1.0-dev - 2026-07-23
 
 - Ajout selection multiple dans la file d'images.

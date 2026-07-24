@@ -1,0 +1,8 @@
+[11:24] ACTION | v1.7 | points/zones d'interet manuels, navigation images, build dist/1.7 | swift test 19 passes; app signee ad hoc
+[11:29] ACTION | v1.7 | apercu export, correction auto X/Y/Zoom/main, watermark preview | swift test 19 passes; app signee ad hoc; verification UI watermark OK
+[11:32] ACTION | v1.7 | correction zoom slider apres decision manuelle | swift test 19 passes; app signee ad hoc; verification UI zoom OK
+[11:36] ACTION | v1.7 | interface FR/EN, icones fleches pour deplacement | swift test 19 passes; app signee ad hoc; verification UI FR/EN OK
+[15:40] ACTION | v1.7 | icones deplacement type clavier gauche/droite et haut/bas | swift test 19 passes; app signee ad hoc; verification UI OK
+[15:45] ACTION | v1.7 | deplacement direct dans apres sans bouton main, chevrons clavier | swift test 19 passes; app signee ad hoc; verification UI OK
+[15:46] ACTION | v1.7 | suppression icone main apres, boutons fleches plus visibles | swift test 19 passes; app signee ad hoc; verification UI OK
+[15:52] ACTION | v2.0 | version validee locale depuis v1.7 | app dist/2.0 creee, signee ad hoc, zip et checksum OK

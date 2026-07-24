@@ -3,6 +3,100 @@ import InstaBatchCropCore
 import SwiftUI
 import UniformTypeIdentifiers
 
+private extension AppLanguage {
+    func text(_ key: String) -> String {
+        let fr = [
+            "chooseFiles": "Choisir fichiers",
+            "chooseFolder": "Choisir dossier",
+            "images": "Images",
+            "removeSelected": "Retirer les images selectionnees",
+            "clearQueue": "Vider",
+            "clearQueueHelp": "Nettoyer toute la file",
+            "processAll": "Traiter toutes les photos",
+            "language": "Langue",
+            "formats": "Formats",
+            "mode": "Mode",
+            "fallback": "Secours",
+            "margin": "Marge",
+            "export": "Export",
+            "metadata": "Metadonnees",
+            "compression": "Compression",
+            "debugBoxes": "Debug boxes",
+            "watermark": "Watermark",
+            "active": "Actif",
+            "text": "Texte",
+            "logo": "Logo",
+            "logoHelp": "Choisir une image watermark, PNG transparent recommande",
+            "clearLogo": "Retirer le logo watermark",
+            "activeLogo": "Logo actif",
+            "position": "Position",
+            "opacity": "Opacite",
+            "watermarkSize": "Taille watermark",
+            "exportPreview": "Apercu export",
+            "refresh": "Actualiser",
+            "moveCrop": "Deplacer le cadrage dans l'apercu apres",
+            "resetManual": "Remettre deplacement et zoom a zero",
+            "previousImage": "Image precedente",
+            "nextImage": "Image suivante",
+            "focusHelp": "Marquer les points ou zones prioritaires sur l'image avant",
+            "clearFocus": "Effacer les interets de cette image",
+            "interestCount": "interet(s)",
+            "before": "Avant",
+            "after": "Apres",
+            "horizontal": "Deplacement horizontal",
+            "vertical": "Deplacement vertical",
+            "zoom": "Zoom",
+            "report": "Rapport",
+            "dropPhotos": "Glisser-deposer des photos"
+        ]
+        let en = [
+            "chooseFiles": "Choose files",
+            "chooseFolder": "Choose folder",
+            "images": "Images",
+            "removeSelected": "Remove selected images",
+            "clearQueue": "Clear",
+            "clearQueueHelp": "Clear the whole queue",
+            "processAll": "Process all photos",
+            "language": "Language",
+            "formats": "Formats",
+            "mode": "Mode",
+            "fallback": "Fallback",
+            "margin": "Margin",
+            "export": "Export",
+            "metadata": "Metadata",
+            "compression": "Compression",
+            "debugBoxes": "Debug boxes",
+            "watermark": "Watermark",
+            "active": "Active",
+            "text": "Text",
+            "logo": "Logo",
+            "logoHelp": "Choose a watermark image, transparent PNG recommended",
+            "clearLogo": "Remove watermark logo",
+            "activeLogo": "Active logo",
+            "position": "Position",
+            "opacity": "Opacity",
+            "watermarkSize": "Watermark size",
+            "exportPreview": "Export preview",
+            "refresh": "Refresh",
+            "moveCrop": "Move crop in the after preview",
+            "resetManual": "Reset move and zoom",
+            "previousImage": "Previous image",
+            "nextImage": "Next image",
+            "focusHelp": "Mark priority points or areas on the before image",
+            "clearFocus": "Clear marks for this image",
+            "interestCount": "mark(s)",
+            "before": "Before",
+            "after": "After",
+            "horizontal": "Horizontal move",
+            "vertical": "Vertical move",
+            "zoom": "Zoom",
+            "report": "Report",
+            "dropPhotos": "Drag and drop photos"
+        ]
+        return (self == .fr ? fr : en)[key] ?? key
+    }
+}
+
 struct ContentView: View {
     @StateObject private var viewModel = AppViewModel()
 
@@ -25,15 +119,15 @@ struct ContentView: View {
     private var leftPane: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Button("Choisir fichiers") { viewModel.selectFiles() }
-                Button("Choisir dossier") { viewModel.selectFolder() }
+                Button(viewModel.language.text("chooseFiles")) { viewModel.selectFiles() }
+                Button(viewModel.language.text("chooseFolder")) { viewModel.selectFolder() }
             }
 
-            DropZone()
+            DropZone(title: viewModel.language.text("dropPhotos"))
                 .frame(height: 110)
 
             HStack {
-                Text("Images")
+                Text(viewModel.language.text("images"))
                     .font(.headline)
                 Spacer()
                 Button {
@@ -41,12 +135,12 @@ struct ContentView: View {
                 } label: {
                     Image(systemName: "trash")
                 }
-                .help("Retirer les images selectionnees")
+                .help(viewModel.language.text("removeSelected"))
                 .disabled(viewModel.selectedIDs.isEmpty)
-                Button("Vider") {
+                Button(viewModel.language.text("clearQueue")) {
                     viewModel.clearQueue()
                 }
-                .help("Nettoyer toute la file")
+                .help(viewModel.language.text("clearQueueHelp"))
                 .disabled(viewModel.images.isEmpty)
             }
             List(selection: $viewModel.selectedIDs) {
@@ -72,7 +166,7 @@ struct ContentView: View {
             }
 
             ProgressView(value: viewModel.progress)
-            Button("Traiter toutes les photos") {
+            Button(viewModel.language.text("processAll")) {
                 Task { await viewModel.processAll() }
             }
             .disabled(viewModel.images.isEmpty || viewModel.selectedFormats.isEmpty || viewModel.isProcessing)
@@ -97,52 +191,61 @@ struct ContentView: View {
 
     private var controls: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ControlRow("Formats") {
+            ControlRow(viewModel.language.text("language")) {
+                Picker("", selection: $viewModel.language) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Text(language.displayName).tag(language)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 120)
+            }
+            ControlRow(viewModel.language.text("formats")) {
                 HStack {
                     ForEach(OutputFormat.allCases) { format in
-                        Toggle(format.displayName, isOn: Binding(
+                        Toggle(outputFormatName(format), isOn: Binding(
                             get: { viewModel.selectedFormats.contains(format) },
                             set: { enabled in viewModel.setFormat(format, enabled: enabled) }
                         ))
                     }
                 }
             }
-            ControlRow("Mode") {
+            ControlRow(viewModel.language.text("mode")) {
                 Picker("", selection: $viewModel.cropMode) {
-                    ForEach(CropMode.allCases) { Text($0.displayName).tag($0) }
+                    ForEach(CropMode.allCases) { Text(cropModeName($0)).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .frame(minWidth: 320, maxWidth: 460)
             }
-            ControlRow("Secours") {
+            ControlRow(viewModel.language.text("fallback")) {
                 Picker("", selection: $viewModel.fallbackMode) {
-                    ForEach(FallbackMode.allCases) { Text($0.displayName).tag($0) }
+                    ForEach(FallbackMode.allCases) { Text(fallbackModeName($0)).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .frame(minWidth: 420, maxWidth: 500)
             }
-            ControlRow("Marge") {
+            ControlRow(viewModel.language.text("margin")) {
                 Slider(value: $viewModel.margin, in: 0.02...0.35)
                     .frame(minWidth: 120, maxWidth: 360)
                 Text("\(Int(viewModel.margin * 100))%")
                     .frame(width: 48, alignment: .trailing)
             }
-            ControlRow("Export") {
+            ControlRow(viewModel.language.text("export")) {
                 Picker("", selection: $viewModel.exportType) {
                     ForEach(ExportFileType.allCases) { Text($0.rawValue.uppercased()).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 230)
-                Toggle("Metadonnees", isOn: $viewModel.preserveMetadata)
+                Toggle(viewModel.language.text("metadata"), isOn: $viewModel.preserveMetadata)
             }
-            ControlRow("Compression") {
+            ControlRow(viewModel.language.text("compression")) {
                 Slider(value: $viewModel.jpegQuality, in: 0.5...1.0)
                     .frame(minWidth: 120, maxWidth: 340)
-                Toggle("Debug boxes", isOn: $viewModel.debugOverlay)
+                Toggle(viewModel.language.text("debugBoxes"), isOn: $viewModel.debugOverlay)
             }
-            ControlRow("Watermark") {
-                Toggle("Actif", isOn: $viewModel.watermarkEnabled)
-                TextField("Texte", text: Binding(
+            ControlRow(viewModel.language.text("watermark")) {
+                Toggle(viewModel.language.text("active"), isOn: $viewModel.watermarkEnabled)
+                TextField(viewModel.language.text("text"), text: Binding(
                     get: { viewModel.watermarkText },
                     set: { viewModel.updateWatermarkText($0) }
                 ))
@@ -154,43 +257,43 @@ struct ContentView: View {
                 ))
                     .labelsHidden()
                     .frame(width: 44)
-                Button("Logo") {
+                Button(viewModel.language.text("logo")) {
                     viewModel.selectWatermarkImage()
                 }
-                .help("Choisir une image watermark, PNG transparent recommande")
+                .help(viewModel.language.text("logoHelp"))
                 Button {
                     viewModel.clearWatermarkImage()
                 } label: {
                     Image(systemName: "xmark.circle")
                 }
-                .help("Retirer le logo watermark")
+                .help(viewModel.language.text("clearLogo"))
                 .disabled(viewModel.watermarkImageURL == nil)
             }
             if let logoName = viewModel.watermarkImageURL?.lastPathComponent {
-                ControlRow("Logo actif") {
+                ControlRow(viewModel.language.text("activeLogo")) {
                     Text(logoName)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
             }
-            ControlRow("Position") {
+            ControlRow(viewModel.language.text("position")) {
                 Picker("", selection: $viewModel.watermarkPosition) {
-                    ForEach(WatermarkPosition.allCases) { Text($0.displayName).tag($0) }
+                    ForEach(WatermarkPosition.allCases) { Text(watermarkPositionName($0)).tag($0) }
                 }
                 .pickerStyle(.menu)
                 .frame(width: 150)
                 HStack {
-                    Text("Opacite")
+                    Text(viewModel.language.text("opacity"))
                     Slider(value: $viewModel.watermarkOpacity, in: 0.05...1.0)
                 }
                 .frame(minWidth: 160, maxWidth: 260)
             }
-            ControlRow("Taille watermark") {
+            ControlRow(viewModel.language.text("watermarkSize")) {
                 Slider(value: $viewModel.watermarkSize, in: 12...120)
                     .frame(minWidth: 120, maxWidth: 240)
                 HStack {
-                    Text("Marge")
+                    Text(viewModel.language.text("margin"))
                     Slider(value: $viewModel.watermarkMargin, in: 0...160)
                 }
                 .frame(minWidth: 120, maxWidth: 240)
@@ -211,37 +314,78 @@ struct ContentView: View {
 
     private var preview: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Apercu avant / apres")
+            Text(viewModel.language.text("exportPreview"))
                 .font(.headline)
             HStack(spacing: 10) {
-                Button("Generer apercu") {
+                Button(viewModel.language.text("refresh")) {
                     Task { await viewModel.generatePreview() }
                 }
                 .disabled(viewModel.selectedImage == nil)
                 Button {
-                    viewModel.handToolEnabled.toggle()
+                    viewModel.resetManualCorrection()
                 } label: {
-                    Image(systemName: "hand.draw")
+                    Image(systemName: "arrow.counterclockwise")
                 }
-                .help("Deplacer le cadrage dans l'apercu apres")
-                .buttonStyle(.bordered)
-                Button("Appliquer correction") {
-                    viewModel.applyManualCrop()
-                }
-                .help("Appliquer la correction manuelle au batch")
+                .help(viewModel.language.text("resetManual"))
                 .disabled(viewModel.previewDecision == nil)
                 Spacer(minLength: 0)
             }
+            HStack(spacing: 8) {
+                Button {
+                    viewModel.selectPreviousImage()
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .help(viewModel.language.text("previousImage"))
+                .disabled(viewModel.images.isEmpty)
+                Button {
+                    viewModel.selectNextImage()
+                } label: {
+                    Image(systemName: "chevron.right")
+                }
+                .help(viewModel.language.text("nextImage"))
+                .disabled(viewModel.images.isEmpty)
+                Picker("", selection: $viewModel.focusTool) {
+                    ForEach(FocusTool.allCases) { tool in
+                        Text(tool.displayName(language: viewModel.language)).tag(tool)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 240)
+                .help(viewModel.language.text("focusHelp"))
+                Button {
+                    viewModel.clearFocusAnnotationsForSelection()
+                } label: {
+                    Image(systemName: "eraser")
+                }
+                .help(viewModel.language.text("clearFocus"))
+                .disabled(viewModel.currentFocusAnnotations.isEmpty)
+                if !viewModel.currentFocusAnnotations.isEmpty {
+                    Text("\(viewModel.currentFocusAnnotations.count) \(viewModel.language.text("interestCount"))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
             HStack(spacing: 16) {
-                PreviewBox(title: "Avant", image: viewModel.selectedImage?.preview)
+                FocusMarkingPreviewBox(
+                    title: viewModel.language.text("before"),
+                    image: viewModel.selectedImage?.preview,
+                    annotations: viewModel.currentFocusAnnotations,
+                    tool: viewModel.focusTool
+                ) { point, imageSize in
+                    viewModel.addFocusPoint(point, imageSize: imageSize)
+                } onZone: { rect, imageSize in
+                    viewModel.addFocusZone(rect, imageSize: imageSize)
+                }
                 DraggablePreviewBox(
-                    title: "Apres",
+                    title: viewModel.language.text("after"),
                     sourceImage: viewModel.selectedImage?.preview,
                     renderedImage: viewModel.afterPreview,
                     decision: viewModel.previewDecision,
                     imageSize: viewModel.previewImageSize,
-                    isHandEnabled: viewModel.handToolEnabled,
-                    aspectRatio: viewModel.previewFormat.aspectRatio
+                    aspectRatio: viewModel.previewFormat.aspectRatio,
+                    showRenderedPreview: viewModel.watermarkEnabled || viewModel.debugOverlay
                 ) { translation, size in
                     viewModel.isDraggingPreview = true
                     viewModel.applyPreviewDrag(translation, previewSize: size)
@@ -256,14 +400,17 @@ struct ContentView: View {
             }
             Grid(alignment: .leading) {
                 GridRow {
-                    Text("X")
-                    Slider(value: $viewModel.manualOffsetX, in: -1...1)
+                    KeyboardArrowIcon(axis: .horizontal)
+                        .help(viewModel.language.text("horizontal"))
+                    Slider(value: $viewModel.manualOffsetX, in: -2...2)
                         .frame(minWidth: 120, maxWidth: 190)
-                    Text("Y")
-                    Slider(value: $viewModel.manualOffsetY, in: -1...1)
+                    KeyboardArrowIcon(axis: .vertical)
+                        .help(viewModel.language.text("vertical"))
+                    Slider(value: $viewModel.manualOffsetY, in: -2...2)
                         .frame(minWidth: 120, maxWidth: 190)
-                    Text("Zoom")
-                    Slider(value: $viewModel.manualZoom, in: 0.8...1.6)
+                    Image(systemName: "magnifyingglass")
+                        .help(viewModel.language.text("zoom"))
+                    Slider(value: $viewModel.manualZoom, in: 0.35...3.0)
                         .frame(minWidth: 120, maxWidth: 190)
                 }
             }
@@ -272,7 +419,7 @@ struct ContentView: View {
 
     private var report: some View {
         VStack(alignment: .leading) {
-            Text("Rapport")
+            Text(viewModel.language.text("report"))
                 .font(.headline)
             List(viewModel.results) { result in
                 HStack {
@@ -280,7 +427,7 @@ struct ContentView: View {
                         .frame(width: 72, alignment: .leading)
                     Text(result.inputURL.lastPathComponent)
                         .lineLimit(1)
-                    Text(result.format.displayName)
+                    Text(outputFormatName(result.format))
                     Text(result.message)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -288,9 +435,75 @@ struct ContentView: View {
             }
         }
     }
+
+    private func outputFormatName(_ format: OutputFormat) -> String {
+        switch format {
+        case .portrait4x5: "Portrait 4:5"
+        case .square: viewModel.language == .fr ? "Carre 1:1" : "Square 1:1"
+        case .story9x16: "Story 9:16"
+        }
+    }
+
+    private func cropModeName(_ mode: CropMode) -> String {
+        switch mode {
+        case .strictCenter: viewModel.language == .fr ? "Centrage strict" : "Strict center"
+        case .natural: viewModel.language == .fr ? "Cadrage naturel" : "Natural crop"
+        case .preserveSubject: viewModel.language == .fr ? "Preserver tout" : "Preserve all"
+        }
+    }
+
+    private func fallbackModeName(_ mode: FallbackMode) -> String {
+        switch mode {
+        case .blurredBackground: viewModel.language == .fr ? "Fond floute" : "Blurred bg"
+        case .solidBackground: viewModel.language == .fr ? "Fond uni" : "Solid bg"
+        case .keepWholeImage: viewModel.language == .fr ? "Image entiere" : "Whole image"
+        case .maximumCrop: viewModel.language == .fr ? "Recadrage max" : "Max crop"
+        }
+    }
+
+    private func watermarkPositionName(_ position: WatermarkPosition) -> String {
+        switch position {
+        case .bottomRight: viewModel.language == .fr ? "Bas droite" : "Bottom right"
+        case .bottomLeft: viewModel.language == .fr ? "Bas gauche" : "Bottom left"
+        case .topRight: viewModel.language == .fr ? "Haut droite" : "Top right"
+        case .topLeft: viewModel.language == .fr ? "Haut gauche" : "Top left"
+        case .center: viewModel.language == .fr ? "Centre" : "Center"
+        }
+    }
+}
+
+struct KeyboardArrowIcon: View {
+    enum Axis {
+        case horizontal
+        case vertical
+    }
+
+    let axis: Axis
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 5)
+                .fill(.quaternary)
+            if axis == .horizontal {
+                HStack(spacing: 1) {
+                    Image(systemName: "chevron.left")
+                    Image(systemName: "chevron.right")
+                }
+            } else {
+                VStack(spacing: -2) {
+                    Image(systemName: "chevron.up")
+                    Image(systemName: "chevron.down")
+                }
+            }
+        }
+        .font(.system(size: 12, weight: .bold))
+        .frame(width: 24, height: 24)
+    }
 }
 
 struct DropZone: View {
+    let title: String
+
     var body: some View {
         RoundedRectangle(cornerRadius: 8)
             .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8]))
@@ -298,7 +511,7 @@ struct DropZone: View {
                 VStack {
                     Image(systemName: "photo.on.rectangle.angled")
                         .font(.system(size: 30))
-                    Text("Glisser-deposer des photos")
+                    Text(title)
                 }
                 .foregroundStyle(.secondary)
             }
@@ -351,14 +564,145 @@ struct PreviewBox: View {
     }
 }
 
+struct FocusMarkingPreviewBox: View {
+    let title: String
+    let image: NSImage?
+    let annotations: [FocusAnnotation]
+    let tool: FocusTool
+    let onPoint: (CGPoint, CGSize) -> Void
+    let onZone: (CGRect, CGSize) -> Void
+    @State private var dragStart: CGPoint?
+    @State private var dragCurrent: CGPoint?
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            HStack {
+                Text(title).font(.caption)
+                if tool != .none {
+                    Image(systemName: tool == .point ? "scope" : "rectangle.dashed")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                }
+            }
+            GeometryReader { proxy in
+                let imageSize = image?.size ?? .zero
+                let frame = Self.imageFrame(imageSize: imageSize, container: proxy.size)
+                ZStack {
+                    Rectangle().fill(.quaternary)
+                    if let image {
+                        Image(nsImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: frame.width, height: frame.height)
+                            .position(x: frame.midX, y: frame.midY)
+                        ForEach(annotations) { annotation in
+                            let rect = Self.viewRect(for: annotation.rect, imageSize: imageSize, imageFrame: frame)
+                            if annotation.kind == .point {
+                                Circle()
+                                    .stroke(.yellow, lineWidth: 3)
+                                    .frame(width: max(14, rect.width), height: max(14, rect.height))
+                                    .position(x: rect.midX, y: rect.midY)
+                            } else {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .stroke(.yellow, style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
+                                    .frame(width: rect.width, height: rect.height)
+                                    .position(x: rect.midX, y: rect.midY)
+                            }
+                        }
+                        if let dragStart, let dragCurrent, tool == .zone {
+                            let rect = CGRect(
+                                x: min(dragStart.x, dragCurrent.x),
+                                y: min(dragStart.y, dragCurrent.y),
+                                width: abs(dragCurrent.x - dragStart.x),
+                                height: abs(dragCurrent.y - dragStart.y)
+                            )
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(.blue, style: StrokeStyle(lineWidth: 2, dash: [5, 4]))
+                                .frame(width: rect.width, height: rect.height)
+                                .position(x: rect.midX, y: rect.midY)
+                        }
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .contentShape(Rectangle())
+                .gesture(tool == .none ? nil : DragGesture(minimumDistance: tool == .point ? 0 : 4)
+                    .onChanged { value in
+                        guard frame.contains(value.startLocation), frame.contains(value.location) else { return }
+                        if tool == .zone {
+                            dragStart = value.startLocation
+                            dragCurrent = value.location
+                        }
+                    }
+                    .onEnded { value in
+                        defer {
+                            dragStart = nil
+                            dragCurrent = nil
+                        }
+                        guard imageSize.width > 1, imageSize.height > 1 else { return }
+                        switch tool {
+                        case .none:
+                            return
+                        case .point:
+                            guard frame.contains(value.location) else { return }
+                            onPoint(Self.imagePoint(for: value.location, imageSize: imageSize, imageFrame: frame), imageSize)
+                        case .zone:
+                            guard frame.contains(value.startLocation), frame.contains(value.location) else { return }
+                            let start = Self.imagePoint(for: value.startLocation, imageSize: imageSize, imageFrame: frame)
+                            let end = Self.imagePoint(for: value.location, imageSize: imageSize, imageFrame: frame)
+                            onZone(CGRect(
+                                x: min(start.x, end.x),
+                                y: min(start.y, end.y),
+                                width: abs(end.x - start.x),
+                                height: abs(end.y - start.y)
+                            ), imageSize)
+                        }
+                    })
+            }
+            .frame(height: 280)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private static func imageFrame(imageSize: CGSize, container: CGSize) -> CGRect {
+        guard imageSize.width > 1, imageSize.height > 1 else {
+            return CGRect(origin: .zero, size: container).insetBy(dx: 6, dy: 6)
+        }
+        let maxSize = CGSize(width: max(1, container.width - 12), height: max(1, container.height - 12))
+        let scale = min(maxSize.width / imageSize.width, maxSize.height / imageSize.height)
+        let size = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+        return CGRect(
+            x: (container.width - size.width) / 2,
+            y: (container.height - size.height) / 2,
+            width: size.width,
+            height: size.height
+        )
+    }
+
+    private static func imagePoint(for location: CGPoint, imageSize: CGSize, imageFrame: CGRect) -> CGPoint {
+        CGPoint(
+            x: (location.x - imageFrame.minX) / imageFrame.width * imageSize.width,
+            y: (location.y - imageFrame.minY) / imageFrame.height * imageSize.height
+        )
+    }
+
+    private static func viewRect(for rect: CGRect, imageSize: CGSize, imageFrame: CGRect) -> CGRect {
+        CGRect(
+            x: imageFrame.minX + rect.minX / imageSize.width * imageFrame.width,
+            y: imageFrame.minY + rect.minY / imageSize.height * imageFrame.height,
+            width: rect.width / imageSize.width * imageFrame.width,
+            height: rect.height / imageSize.height * imageFrame.height
+        )
+    }
+}
+
 struct DraggablePreviewBox: View {
     let title: String
     let sourceImage: NSImage?
     let renderedImage: NSImage?
     let decision: CropDecision?
     let imageSize: CGSize
-    let isHandEnabled: Bool
     let aspectRatio: CGFloat
+    let showRenderedPreview: Bool
     let onDragChanged: (CGSize, CGSize) -> Void
     let onDragEnded: () -> Void
     @State private var liveDrag: CGSize = .zero
@@ -368,11 +712,6 @@ struct DraggablePreviewBox: View {
         VStack(alignment: .leading) {
             HStack {
                 Text(title).font(.caption)
-                if isHandEnabled {
-                    Image(systemName: "hand.draw")
-                        .font(.caption)
-                        .foregroundStyle(.blue)
-                }
             }
             GeometryReader { proxy in
                 let frameSize = Self.instagramFrameSize(in: proxy.size, aspectRatio: aspectRatio)
@@ -380,7 +719,11 @@ struct DraggablePreviewBox: View {
                     Rectangle().fill(.quaternary)
                     ZStack {
                         Rectangle().fill(.black.opacity(0.08))
-                        if let sourceImage, let decision, imageSize.width > 1, imageSize.height > 1 {
+                        if showRenderedPreview, liveDrag == .zero, let renderedImage {
+                            Image(nsImage: renderedImage)
+                                .resizable()
+                                .scaledToFit()
+                        } else if let sourceImage, let decision, imageSize.width > 1, imageSize.height > 1 {
                             let placement = Self.sourcePlacement(
                                 imageSize: imageSize,
                                 cropRect: decision.cropRect,
@@ -399,17 +742,8 @@ struct DraggablePreviewBox: View {
                     }
                     .frame(width: frameSize.width, height: frameSize.height)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .overlay {
-                        if isHandEnabled {
-                            Image(systemName: "hand.draw")
-                                .font(.system(size: 28, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.9))
-                                .shadow(radius: 4)
-                                .offset(liveDrag)
-                        }
-                    }
                     .contentShape(Rectangle())
-                    .gesture(isHandEnabled ? DragGesture()
+                    .gesture((sourceImage != nil && decision != nil) ? DragGesture()
                         .onChanged { value in
                             let delta = CGSize(
                                 width: value.translation.width - lastTranslation.width,

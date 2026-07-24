@@ -21,6 +21,7 @@ public final class BatchProcessor: Sendable {
         outputDirectory: URL,
         settings: CropSettings,
         decisionOverrides: [String: CropDecision] = [:],
+        focusObservations: [String: [SubjectObservation]] = [:],
         progress: @Sendable @escaping (Int, Int) async -> Void
     ) async -> [BatchResult] {
         try? FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true)
@@ -31,23 +32,24 @@ public final class BatchProcessor: Sendable {
             for inputURL in urls {
                 group.addTask {
                     var imageResults: [BatchResult] = []
-                    do {
-                        let analysis = try self.analyzer.analyze(imageURL: inputURL)
-                        for format in formats.sorted(by: { $0.rawValue < $1.rawValue }) {
-                            let automaticDecision = self.engine.decide(
-                                imageSize: analysis.size,
-                                observations: analysis.observations,
-                                target: format,
-                                settings: settings
-                            )
+	                    do {
+	                        let analysis = try self.analyzer.analyze(imageURL: inputURL)
+	                        let priorityObservations = focusObservations[inputURL.path].flatMap { $0.isEmpty ? nil : $0 } ?? analysis.observations
+	                        for format in formats.sorted(by: { $0.rawValue < $1.rawValue }) {
+	                            let automaticDecision = self.engine.decide(
+	                                imageSize: analysis.size,
+	                                observations: priorityObservations,
+	                                target: format,
+	                                settings: settings
+	                            )
                             let decision = decisionOverrides[Self.overrideKey(inputURL: inputURL, format: format)] ?? automaticDecision
                             let rendered = try self.renderer.render(
                                 inputURL: inputURL,
-                                target: format,
-                                decision: decision,
-                                observations: analysis.observations,
-                                settings: settings
-                            )
+	                                target: format,
+	                                decision: decision,
+	                                observations: analysis.observations + priorityObservations,
+	                                settings: settings
+	                            )
                             let outputURL = outputDirectory.appendingPathComponent(
                                 Self.outputName(for: inputURL, format: format, settings: settings)
                             )
