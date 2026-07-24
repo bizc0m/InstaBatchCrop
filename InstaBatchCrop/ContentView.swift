@@ -236,10 +236,17 @@ struct ContentView: View {
                 PreviewBox(title: "Avant", image: viewModel.selectedImage?.preview)
                 DraggablePreviewBox(
                     title: "Apres",
-                    image: viewModel.afterPreview,
-                    isHandEnabled: viewModel.handToolEnabled
+                    sourceImage: viewModel.selectedImage?.preview,
+                    renderedImage: viewModel.afterPreview,
+                    decision: viewModel.previewDecision,
+                    imageSize: viewModel.previewImageSize,
+                    isHandEnabled: viewModel.handToolEnabled,
+                    aspectRatio: viewModel.previewFormat.aspectRatio
                 ) { translation, size in
-                    Task { await viewModel.applyPreviewDrag(translation, previewSize: size) }
+                    viewModel.isDraggingPreview = true
+                    viewModel.applyPreviewDrag(translation, previewSize: size)
+                } onDragEnded: {
+                    viewModel.finishPreviewDrag()
                 }
             }
             if let decision = viewModel.previewDecision {
@@ -346,10 +353,16 @@ struct PreviewBox: View {
 
 struct DraggablePreviewBox: View {
     let title: String
-    let image: NSImage?
+    let sourceImage: NSImage?
+    let renderedImage: NSImage?
+    let decision: CropDecision?
+    let imageSize: CGSize
     let isHandEnabled: Bool
-    let onDragEnded: (CGSize, CGSize) -> Void
+    let aspectRatio: CGFloat
+    let onDragChanged: (CGSize, CGSize) -> Void
+    let onDragEnded: () -> Void
     @State private var liveDrag: CGSize = .zero
+    @State private var lastTranslation: CGSize = .zero
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -362,38 +375,79 @@ struct DraggablePreviewBox: View {
                 }
             }
             GeometryReader { proxy in
+                let frameSize = Self.instagramFrameSize(in: proxy.size, aspectRatio: aspectRatio)
                 ZStack {
                     Rectangle().fill(.quaternary)
-                    if let image {
-                        Image(nsImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .padding(6)
-                            .opacity(liveDrag == .zero ? 1 : 0.82)
+                    ZStack {
+                        Rectangle().fill(.black.opacity(0.08))
+                        if let sourceImage, let decision, imageSize.width > 1, imageSize.height > 1 {
+                            let placement = Self.sourcePlacement(
+                                imageSize: imageSize,
+                                cropRect: decision.cropRect,
+                                frameSize: frameSize
+                            )
+                            Image(nsImage: sourceImage)
+                                .resizable()
+                                .frame(width: placement.size.width, height: placement.size.height)
+                                .position(placement.center)
+                                .offset(liveDrag)
+                        } else if let renderedImage {
+                            Image(nsImage: renderedImage)
+                                .resizable()
+                                .scaledToFit()
+                        }
                     }
-                }
-                .overlay {
-                    if isHandEnabled {
-                        Image(systemName: "hand.draw")
-                            .font(.system(size: 28, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.85))
-                            .shadow(radius: 4)
-                            .offset(liveDrag)
+                    .frame(width: frameSize.width, height: frameSize.height)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay {
+                        if isHandEnabled {
+                            Image(systemName: "hand.draw")
+                                .font(.system(size: 28, weight: .semibold))
+                                .foregroundStyle(.white.opacity(0.9))
+                                .shadow(radius: 4)
+                                .offset(liveDrag)
+                        }
                     }
+                    .contentShape(Rectangle())
+                    .gesture(isHandEnabled ? DragGesture()
+                        .onChanged { value in
+                            let delta = CGSize(
+                                width: value.translation.width - lastTranslation.width,
+                                height: value.translation.height - lastTranslation.height
+                            )
+                            lastTranslation = value.translation
+                            liveDrag = value.translation
+                            onDragChanged(delta, frameSize)
+                        }
+                        .onEnded { _ in
+                            liveDrag = .zero
+                            lastTranslation = .zero
+                            onDragEnded()
+                        } : nil)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 8))
-                .contentShape(Rectangle())
-                .gesture(isHandEnabled ? DragGesture()
-                    .onChanged { value in
-                        liveDrag = value.translation
-                    }
-                    .onEnded { value in
-                        liveDrag = .zero
-                        onDragEnded(value.translation, proxy.size)
-                    } : nil)
             }
             .frame(height: 280)
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private static func instagramFrameSize(in container: CGSize, aspectRatio: CGFloat) -> CGSize {
+        let maxWidth = max(1, container.width - 12)
+        let maxHeight = max(1, container.height - 12)
+        if maxWidth / maxHeight > aspectRatio {
+            return CGSize(width: maxHeight * aspectRatio, height: maxHeight)
+        }
+        return CGSize(width: maxWidth, height: maxWidth / aspectRatio)
+    }
+
+    private static func sourcePlacement(imageSize: CGSize, cropRect: CGRect, frameSize: CGSize) -> (size: CGSize, center: CGPoint) {
+        let scale = max(frameSize.width / max(1, cropRect.width), frameSize.height / max(1, cropRect.height))
+        let renderedSize = CGSize(width: imageSize.width * scale, height: imageSize.height * scale)
+        let origin = CGPoint(x: -cropRect.minX * scale, y: -cropRect.minY * scale)
+        return (
+            size: renderedSize,
+            center: CGPoint(x: origin.x + renderedSize.width / 2, y: origin.y + renderedSize.height / 2)
+        )
     }
 }

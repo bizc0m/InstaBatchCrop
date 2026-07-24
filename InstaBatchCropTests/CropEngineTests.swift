@@ -116,4 +116,24 @@ struct CropEngineTests {
         #expect(moved.cropRect.minY == 300)
         #expect(moved.usesFallback == false)
     }
+
+    @Test func handDragCreatesPanRoomAtImageEdge() {
+        let decision = CropDecision(
+            cropRect: CGRect(x: 0, y: 32, width: 768, height: 960),
+            subjectRect: CGRect(x: 360, y: 260, width: 220, height: 320),
+            score: 0.87,
+            usesFallback: false,
+            reason: "Test"
+        )
+        let moved = engine.moveCrop(
+            decision,
+            imageSize: CGSize(width: 768, height: 1024),
+            outputTranslation: CGSize(width: -90, height: 0),
+            outputSize: CGSize(width: 216, height: 270)
+        )
+        #expect(moved.cropRect.minX > 0)
+        #expect(moved.cropRect.width < decision.cropRect.width)
+        #expect(abs((moved.cropRect.width / moved.cropRect.height) - (4.0 / 5.0)) < 0.01)
+        #expect(moved.usesFallback == false)
+    }
 }

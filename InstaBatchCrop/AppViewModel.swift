@@ -33,10 +33,13 @@ final class AppViewModel: ObservableObject {
     @Published var results: [BatchResult] = []
     @Published var afterPreview: NSImage?
     @Published var previewDecision: CropDecision?
+    @Published var previewFormat: OutputFormat = .portrait4x5
+    @Published var previewImageSize: CGSize = .zero
     @Published var manualOffsetX: CGFloat = 0 { didSet { schedulePreviewRefresh() } }
     @Published var manualOffsetY: CGFloat = 0 { didSet { schedulePreviewRefresh() } }
     @Published var manualZoom: CGFloat = 1 { didSet { schedulePreviewRefresh() } }
     @Published var handToolEnabled = false
+    @Published var isDraggingPreview = false
     @Published var watermarkEnabled = false { didSet { schedulePreviewRefresh() } }
     @Published var watermarkText = "InstaBatch Crop" { didSet { schedulePreviewRefresh() } }
     @Published var watermarkImageURL: URL? { didSet { schedulePreviewRefresh() } }
@@ -179,6 +182,8 @@ final class AppViewModel: ObservableObject {
             let rendered = try renderer.render(inputURL: image.url, target: format, decision: decision, observations: analysis.observations, settings: settings())
             afterPreview = NSImage(cgImage: rendered.image, size: format.pixelSize)
             previewDecision = decision
+            previewFormat = format
+            previewImageSize = analysis.size
             lastPreviewAnalysis = (image.url, analysis.size, analysis.observations, format)
         } catch {
             updateStatus(for: image.id, status: error.localizedDescription)
@@ -186,7 +191,7 @@ final class AppViewModel: ObservableObject {
     }
 
     func schedulePreviewRefresh(delayMilliseconds: UInt64 = 180) {
-        guard selectedImage != nil else { return }
+        guard selectedImage != nil, !isDraggingPreview else { return }
         previewRefreshTask?.cancel()
         previewRefreshTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: delayMilliseconds * 1_000_000)
@@ -235,7 +240,7 @@ final class AppViewModel: ObservableObject {
         updateStatus(for: image.id, status: "Correction manuelle")
     }
 
-    func applyPreviewDrag(_ translation: CGSize, previewSize: CGSize) async {
+    func applyPreviewDrag(_ translation: CGSize, previewSize: CGSize) {
         guard let image = selectedImage,
               let decision = previewDecision,
               let analysis = lastPreviewAnalysis,
@@ -251,16 +256,28 @@ final class AppViewModel: ObservableObject {
         let key = BatchProcessor.overrideKey(inputURL: image.url, format: analysis.format)
         manualDecisions[key] = moved
         previewDecision = moved
+        updateStatus(for: image.id, status: "Correction main")
+    }
+
+    func finishPreviewDrag() {
+        isDraggingPreview = false
+        Task { await renderCurrentManualPreview() }
+    }
+
+    private func renderCurrentManualPreview() async {
+        guard let image = selectedImage,
+              let decision = previewDecision,
+              let analysis = lastPreviewAnalysis,
+              analysis.url == image.url else { return }
         do {
             let rendered = try renderer.render(
                 inputURL: image.url,
                 target: analysis.format,
-                decision: moved,
+                decision: decision,
                 observations: analysis.observations,
                 settings: settings()
             )
             afterPreview = NSImage(cgImage: rendered.image, size: analysis.format.pixelSize)
-            updateStatus(for: image.id, status: "Correction main")
         } catch {
             updateStatus(for: image.id, status: error.localizedDescription)
         }

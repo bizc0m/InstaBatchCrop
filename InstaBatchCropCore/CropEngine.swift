@@ -10,11 +10,13 @@ public struct CropEngine: Sendable {
         }
         var adjusted = decision
         let imageRect = CGRect(origin: .zero, size: imageSize)
+        let aspectRatio = decision.cropRect.width / max(1, decision.cropRect.height)
         var rect = decision.cropRect
         let sourceDX = -outputTranslation.width / outputSize.width * rect.width
         let sourceDY = -outputTranslation.height / outputSize.height * rect.height
         rect.origin.x += sourceDX
         rect.origin.y += sourceDY
+        rect = makePanRoomIfNeeded(rect, aspectRatio: aspectRatio, in: imageRect)
         adjusted.cropRect = clamp(rect, in: imageRect).integral
         adjusted.usesFallback = false
         adjusted.reason = "Correction main"
@@ -178,6 +180,29 @@ public struct CropEngine: Sendable {
         result.origin.x = min(max(bounds.minX, result.origin.x), bounds.maxX - result.width)
         result.origin.y = min(max(bounds.minY, result.origin.y), bounds.maxY - result.height)
         return result
+    }
+
+    private func makePanRoomIfNeeded(_ rect: CGRect, aspectRatio: CGFloat, in imageRect: CGRect) -> CGRect {
+        var next = rect
+        if next.minX < imageRect.minX {
+            next.size.width = max(1, next.maxX - imageRect.minX)
+            next.origin.x = imageRect.minX
+            next.size.height = next.width / aspectRatio
+        } else if next.maxX > imageRect.maxX {
+            next.size.width = max(1, imageRect.maxX - next.minX)
+            next.size.height = next.width / aspectRatio
+        }
+
+        if next.minY < imageRect.minY {
+            next.size.height = max(1, next.maxY - imageRect.minY)
+            next.origin.y = imageRect.minY
+            next.size.width = next.height * aspectRatio
+        } else if next.maxY > imageRect.maxY {
+            next.size.height = max(1, imageRect.maxY - next.minY)
+            next.size.width = next.height * aspectRatio
+        }
+
+        return next
     }
 
     private func score(
