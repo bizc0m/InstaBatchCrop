@@ -101,30 +101,79 @@ struct ContentView: View {
     @StateObject private var viewModel = AppViewModel()
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            leftPane
-                .frame(width: 300)
-                .layoutPriority(1)
-            Divider()
-            rightPane
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        HSplitView {
+            sidebar
+                .frame(minWidth: 280, idealWidth: 320, maxWidth: 380)
+            previewWorkspace
+                .frame(minWidth: 560, maxWidth: .infinity, maxHeight: .infinity)
+            inspector
+                .frame(minWidth: 320, idealWidth: 360, maxWidth: 430)
         }
-        .padding(16)
-        .frame(minWidth: 1060, minHeight: 760)
+        .frame(minWidth: 1180, minHeight: 760)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    viewModel.selectFiles()
+                } label: {
+                    Label(viewModel.language.text("chooseFiles"), systemImage: "photo.badge.plus")
+                }
+                Button {
+                    viewModel.selectFolder()
+                } label: {
+                    Label(viewModel.language.text("chooseFolder"), systemImage: "folder.badge.plus")
+                }
+                Button {
+                    Task { await viewModel.generatePreview() }
+                } label: {
+                    Label(viewModel.language.text("refresh"), systemImage: "rectangle.on.rectangle")
+                }
+                .disabled(viewModel.selectedImage == nil)
+                Button {
+                    Task { await viewModel.processAll() }
+                } label: {
+                    Label(viewModel.language.text("processAll"), systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.images.isEmpty || viewModel.selectedFormats.isEmpty || viewModel.isProcessing)
+            }
+        }
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             viewModel.handleDrop(providers)
         }
     }
 
-    private var leftPane: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Button(viewModel.language.text("chooseFiles")) { viewModel.selectFiles() }
-                Button(viewModel.language.text("chooseFolder")) { viewModel.selectFolder() }
-            }
+    private var sidebar: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("InstaBatch Crop")
+                            .font(.title3.weight(.semibold))
+                        Text("V2.3")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Picker("", selection: $viewModel.language) {
+                        ForEach(AppLanguage.allCases) { language in
+                            Text(language.displayName).tag(language)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 96)
+                }
 
-            DropZone(title: viewModel.language.text("dropPhotos"))
-                .frame(height: 110)
+                DropZone(title: viewModel.language.text("dropPhotos"))
+                    .frame(height: 128)
+
+                HStack(spacing: 8) {
+                    MetricTile(title: viewModel.language.text("images"), value: "\(viewModel.images.count)", symbol: "photo.stack")
+                    MetricTile(title: viewModel.language.text("formats"), value: "\(viewModel.selectedFormats.count)", symbol: "rectangle.3.group")
+                }
+            }
+            .padding(16)
+
+            Divider()
 
             HStack {
                 Text(viewModel.language.text("images"))
@@ -137,168 +186,321 @@ struct ContentView: View {
                 }
                 .help(viewModel.language.text("removeSelected"))
                 .disabled(viewModel.selectedIDs.isEmpty)
-                Button(viewModel.language.text("clearQueue")) {
+                Button {
                     viewModel.clearQueue()
+                } label: {
+                    Image(systemName: "xmark.circle")
                 }
                 .help(viewModel.language.text("clearQueueHelp"))
                 .disabled(viewModel.images.isEmpty)
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+
             List(selection: $viewModel.selectedIDs) {
                 ForEach(viewModel.images) { image in
-                    HStack {
+                    HStack(spacing: 10) {
                         if let preview = image.preview {
                             Image(nsImage: preview)
                                 .resizable()
                                 .scaledToFill()
-                                .frame(width: 58, height: 58)
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                .frame(width: 52, height: 52)
+                                .clipShape(RoundedRectangle(cornerRadius: 7))
+                        } else {
+                            RoundedRectangle(cornerRadius: 7)
+                                .fill(.quaternary)
+                                .frame(width: 52, height: 52)
+                                .overlay(Image(systemName: "photo").foregroundStyle(.secondary))
                         }
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(image.url.lastPathComponent)
                                 .lineLimit(1)
+                                .font(.body.weight(.medium))
                             Text(image.status)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .padding(.vertical, 3)
                     .tag(image.id)
                 }
             }
+            .overlay {
+                if viewModel.images.isEmpty {
+                    ContentUnavailableView(
+                        viewModel.language.text("dropPhotos"),
+                        systemImage: "photo.on.rectangle.angled"
+                    )
+                    .foregroundStyle(.secondary)
+                }
+            }
 
-            ProgressView(value: viewModel.progress)
-            Button(viewModel.language.text("processAll")) {
-                Task { await viewModel.processAll() }
-            }
-            .disabled(viewModel.images.isEmpty || viewModel.selectedFormats.isEmpty || viewModel.isProcessing)
-            .buttonStyle(.borderedProminent)
-        }
-        .frame(maxHeight: .infinity)
-    }
+            Divider()
 
-    private var rightPane: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                controls
-                Divider()
-                preview
-                Divider()
-                report
-                    .frame(minHeight: 180)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private var controls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ControlRow(viewModel.language.text("language")) {
-                Picker("", selection: $viewModel.language) {
-                    ForEach(AppLanguage.allCases) { language in
-                        Text(language.displayName).tag(language)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 120)
-            }
-            ControlRow(viewModel.language.text("formats")) {
-                HStack {
-                    ForEach(OutputFormat.allCases) { format in
-                        Toggle(outputFormatName(format), isOn: Binding(
-                            get: { viewModel.selectedFormats.contains(format) },
-                            set: { enabled in viewModel.setFormat(format, enabled: enabled) }
-                        ))
-                    }
-                }
-            }
-            ControlRow(viewModel.language.text("mode")) {
-                Picker("", selection: $viewModel.cropMode) {
-                    ForEach(CropMode.allCases) { Text(cropModeName($0)).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .frame(minWidth: 320, maxWidth: 460)
-            }
-            ControlRow(viewModel.language.text("fallback")) {
-                Picker("", selection: $viewModel.fallbackMode) {
-                    ForEach(FallbackMode.allCases) { Text(fallbackModeName($0)).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .frame(minWidth: 420, maxWidth: 500)
-            }
-            ControlRow(viewModel.language.text("margin")) {
-                Slider(value: $viewModel.margin, in: 0.02...0.35)
-                    .frame(minWidth: 120, maxWidth: 360)
-                Text("\(Int(viewModel.margin * 100))%")
-                    .frame(width: 48, alignment: .trailing)
-            }
-            ControlRow(viewModel.language.text("export")) {
-                Picker("", selection: $viewModel.exportType) {
-                    ForEach(ExportFileType.allCases) { Text($0.rawValue.uppercased()).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 230)
-                Toggle(viewModel.language.text("metadata"), isOn: $viewModel.preserveMetadata)
-            }
-            ControlRow(viewModel.language.text("compression")) {
-                Slider(value: $viewModel.jpegQuality, in: 0.5...1.0)
-                    .frame(minWidth: 120, maxWidth: 340)
-                Toggle(viewModel.language.text("debugBoxes"), isOn: $viewModel.debugOverlay)
-            }
-            ControlRow(viewModel.language.text("watermark")) {
-                Toggle(viewModel.language.text("active"), isOn: $viewModel.watermarkEnabled)
-                TextField(viewModel.language.text("text"), text: Binding(
-                    get: { viewModel.watermarkText },
-                    set: { viewModel.updateWatermarkText($0) }
-                ))
-                    .textFieldStyle(.roundedBorder)
-                    .frame(minWidth: 140, maxWidth: 260)
-                ColorPicker("", selection: Binding(
-                    get: { viewModel.watermarkColor },
-                    set: { viewModel.updateWatermarkColor($0) }
-                ))
-                    .labelsHidden()
-                    .frame(width: 44)
-                Button(viewModel.language.text("logo")) {
-                    viewModel.selectWatermarkImage()
-                }
-                .help(viewModel.language.text("logoHelp"))
+            VStack(alignment: .leading, spacing: 10) {
+                ProgressView(value: viewModel.progress)
                 Button {
-                    viewModel.clearWatermarkImage()
+                    Task { await viewModel.processAll() }
                 } label: {
-                    Image(systemName: "xmark.circle")
+                    Label(viewModel.language.text("processAll"), systemImage: "square.and.arrow.down")
+                        .frame(maxWidth: .infinity)
                 }
-                .help(viewModel.language.text("clearLogo"))
-                .disabled(viewModel.watermarkImageURL == nil)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(viewModel.images.isEmpty || viewModel.selectedFormats.isEmpty || viewModel.isProcessing)
             }
-            if let logoName = viewModel.watermarkImageURL?.lastPathComponent {
-                ControlRow(viewModel.language.text("activeLogo")) {
-                    Text(logoName)
+            .padding(16)
+        }
+        .background(.regularMaterial)
+    }
+
+    private var previewWorkspace: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(viewModel.language.text("exportPreview"))
+                            .font(.title2.weight(.semibold))
+                        if let selected = viewModel.selectedImage {
+                            Text(selected.url.lastPathComponent)
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        } else {
+                            Text(viewModel.language.text("dropPhotos"))
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button {
+                        viewModel.selectPreviousImage()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    .help(viewModel.language.text("previousImage"))
+                    .disabled(viewModel.images.isEmpty)
+                    Button {
+                        viewModel.selectNextImage()
+                    } label: {
+                        Image(systemName: "chevron.right")
+                    }
+                    .help(viewModel.language.text("nextImage"))
+                    .disabled(viewModel.images.isEmpty)
+                    Button {
+                        viewModel.resetManualCorrection()
+                    } label: {
+                        Image(systemName: "arrow.counterclockwise")
+                    }
+                    .help(viewModel.language.text("resetManual"))
+                    .disabled(viewModel.previewDecision == nil)
+                }
+
+                HStack(spacing: 16) {
+                    FocusMarkingPreviewBox(
+                        title: viewModel.language.text("before"),
+                        image: viewModel.selectedImage?.preview,
+                        annotations: viewModel.currentFocusAnnotations,
+                        tool: viewModel.focusTool
+                    ) { point, imageSize in
+                        viewModel.addFocusPoint(point, imageSize: imageSize)
+                    } onZone: { rect, imageSize in
+                        viewModel.addFocusZone(rect, imageSize: imageSize)
+                    }
+                    DraggablePreviewBox(
+                        title: viewModel.language.text("after"),
+                        sourceImage: viewModel.selectedImage?.preview,
+                        renderedImage: viewModel.afterPreview,
+                        decision: viewModel.previewDecision,
+                        imageSize: viewModel.previewImageSize,
+                        aspectRatio: viewModel.previewFormat.aspectRatio,
+                        showRenderedPreview: viewModel.watermarkEnabled || viewModel.debugOverlay
+                    ) { translation, size in
+                        viewModel.isDraggingPreview = true
+                        viewModel.applyPreviewDrag(translation, previewSize: size)
+                    } onDragEnded: {
+                        viewModel.finishPreviewDrag()
+                    }
+                }
+                .frame(minHeight: 360)
+
+                HStack(alignment: .center, spacing: 12) {
+                    Picker("", selection: $viewModel.focusTool) {
+                        ForEach(FocusTool.allCases) { tool in
+                            Text(tool.displayName(language: viewModel.language)).tag(tool)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 230)
+                    .help(viewModel.language.text("focusHelp"))
+                    Button {
+                        viewModel.clearFocusAnnotationsForSelection()
+                    } label: {
+                        Label(viewModel.language.text("clearFocus"), systemImage: "eraser")
+                    }
+                    .disabled(viewModel.currentFocusAnnotations.isEmpty)
+                    if !viewModel.currentFocusAnnotations.isEmpty {
+                        Text("\(viewModel.currentFocusAnnotations.count) \(viewModel.language.text("interestCount"))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+
+                manualAdjustmentBar
+
+                if let decision = viewModel.previewDecision {
+                    Text("Score \(String(format: "%.2f", Double(decision.score))) - \(decision.reason)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
                 }
             }
-            ControlRow(viewModel.language.text("position")) {
-                Picker("", selection: $viewModel.watermarkPosition) {
-                    ForEach(WatermarkPosition.allCases) { Text(watermarkPositionName($0)).tag($0) }
-                }
-                .pickerStyle(.menu)
-                .frame(width: 150)
-                HStack {
-                    Text(viewModel.language.text("opacity"))
-                    Slider(value: $viewModel.watermarkOpacity, in: 0.05...1.0)
-                }
-                .frame(minWidth: 160, maxWidth: 260)
-            }
-            ControlRow(viewModel.language.text("watermarkSize")) {
-                Slider(value: $viewModel.watermarkSize, in: 12...120)
-                    .frame(minWidth: 120, maxWidth: 240)
-                HStack {
-                    Text(viewModel.language.text("margin"))
-                    Slider(value: $viewModel.watermarkMargin, in: 0...160)
-                }
-                .frame(minWidth: 120, maxWidth: 240)
-            }
+            .padding(18)
+
+            Divider()
+
+            report
+                .frame(minHeight: 170, maxHeight: 230)
+                .padding(18)
         }
+    }
+
+    private var manualAdjustmentBar: some View {
+        HStack(spacing: 14) {
+            KeyboardArrowIcon(axis: .horizontal)
+                .help(viewModel.language.text("horizontal"))
+            Slider(value: $viewModel.manualOffsetX, in: -2...2)
+                .frame(minWidth: 120)
+            KeyboardArrowIcon(axis: .vertical)
+                .help(viewModel.language.text("vertical"))
+            Slider(value: $viewModel.manualOffsetY, in: -2...2)
+                .frame(minWidth: 120)
+            Image(systemName: "magnifyingglass")
+                .help(viewModel.language.text("zoom"))
+            Slider(value: $viewModel.manualZoom, in: 0.35...3.0)
+                .frame(minWidth: 120)
+        }
+        .padding(12)
+        .background(.quinary)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    private var inspector: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                SettingsSection(title: viewModel.language.text("formats"), symbol: "rectangle.3.group") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(OutputFormat.allCases) { format in
+                            Toggle(outputFormatName(format), isOn: Binding(
+                                get: { viewModel.selectedFormats.contains(format) },
+                                set: { enabled in viewModel.setFormat(format, enabled: enabled) }
+                            ))
+                        }
+                    }
+                }
+
+                SettingsSection(title: viewModel.language.text("mode"), symbol: "crop") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Picker("", selection: $viewModel.cropMode) {
+                            ForEach(CropMode.allCases) { Text(cropModeName($0)).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+
+                        Picker("", selection: $viewModel.fallbackMode) {
+                            ForEach(FallbackMode.allCases) { Text(fallbackModeName($0)).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Text(viewModel.language.text("margin"))
+                                Spacer()
+                                Text("\(Int(viewModel.margin * 100))%")
+                                    .foregroundStyle(.secondary)
+                            }
+                            Slider(value: $viewModel.margin, in: 0.02...0.35)
+                        }
+                    }
+                }
+
+                SettingsSection(title: viewModel.language.text("export"), symbol: "square.and.arrow.down") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Picker("", selection: $viewModel.exportType) {
+                            ForEach(ExportFileType.allCases) { Text($0.rawValue.uppercased()).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+
+                        VStack(alignment: .leading) {
+                            Text(viewModel.language.text("compression"))
+                            Slider(value: $viewModel.jpegQuality, in: 0.5...1.0)
+                        }
+
+                        Toggle(viewModel.language.text("metadata"), isOn: $viewModel.preserveMetadata)
+                        Toggle(viewModel.language.text("debugBoxes"), isOn: $viewModel.debugOverlay)
+                    }
+                }
+
+                SettingsSection(title: viewModel.language.text("watermark"), symbol: "signature") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Toggle(viewModel.language.text("active"), isOn: $viewModel.watermarkEnabled)
+                        TextField(viewModel.language.text("text"), text: Binding(
+                            get: { viewModel.watermarkText },
+                            set: { viewModel.updateWatermarkText($0) }
+                        ))
+                        .textFieldStyle(.roundedBorder)
+
+                        HStack {
+                            ColorPicker("", selection: Binding(
+                                get: { viewModel.watermarkColor },
+                                set: { viewModel.updateWatermarkColor($0) }
+                            ))
+                            .labelsHidden()
+                            Button {
+                                viewModel.selectWatermarkImage()
+                            } label: {
+                                Label(viewModel.language.text("logo"), systemImage: "photo")
+                            }
+                            .help(viewModel.language.text("logoHelp"))
+                            Button {
+                                viewModel.clearWatermarkImage()
+                            } label: {
+                                Image(systemName: "xmark.circle")
+                            }
+                            .help(viewModel.language.text("clearLogo"))
+                            .disabled(viewModel.watermarkImageURL == nil)
+                        }
+
+                        if let logoName = viewModel.watermarkImageURL?.lastPathComponent {
+                            Text(logoName)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+
+                        Picker(viewModel.language.text("position"), selection: $viewModel.watermarkPosition) {
+                            ForEach(WatermarkPosition.allCases) { Text(watermarkPositionName($0)).tag($0) }
+                        }
+                        .pickerStyle(.menu)
+
+                        VStack(alignment: .leading) {
+                            Text(viewModel.language.text("opacity"))
+                            Slider(value: $viewModel.watermarkOpacity, in: 0.05...1.0)
+                        }
+                        VStack(alignment: .leading) {
+                            Text(viewModel.language.text("watermarkSize"))
+                            Slider(value: $viewModel.watermarkSize, in: 12...120)
+                        }
+                        VStack(alignment: .leading) {
+                            Text(viewModel.language.text("margin"))
+                            Slider(value: $viewModel.watermarkMargin, in: 0...160)
+                        }
+                    }
+                }
+            }
+            .padding(16)
+        }
+        .background(.regularMaterial)
         .onChange(of: viewModel.cropMode) { _, _ in viewModel.requestPreviewRefresh() }
         .onChange(of: viewModel.fallbackMode) { _, _ in viewModel.requestPreviewRefresh() }
         .onChange(of: viewModel.margin) { _, _ in viewModel.requestPreviewRefresh() }
@@ -310,111 +512,6 @@ struct ContentView: View {
         .onChange(of: viewModel.watermarkOpacity) { _, _ in viewModel.requestPreviewRefresh() }
         .onChange(of: viewModel.watermarkSize) { _, _ in viewModel.requestPreviewRefresh() }
         .onChange(of: viewModel.watermarkMargin) { _, _ in viewModel.requestPreviewRefresh() }
-    }
-
-    private var preview: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(viewModel.language.text("exportPreview"))
-                .font(.headline)
-            HStack(spacing: 10) {
-                Button(viewModel.language.text("refresh")) {
-                    Task { await viewModel.generatePreview() }
-                }
-                .disabled(viewModel.selectedImage == nil)
-                Button {
-                    viewModel.resetManualCorrection()
-                } label: {
-                    Image(systemName: "arrow.counterclockwise")
-                }
-                .help(viewModel.language.text("resetManual"))
-                .disabled(viewModel.previewDecision == nil)
-                Spacer(minLength: 0)
-            }
-            HStack(spacing: 8) {
-                Button {
-                    viewModel.selectPreviousImage()
-                } label: {
-                    Image(systemName: "chevron.left")
-                }
-                .help(viewModel.language.text("previousImage"))
-                .disabled(viewModel.images.isEmpty)
-                Button {
-                    viewModel.selectNextImage()
-                } label: {
-                    Image(systemName: "chevron.right")
-                }
-                .help(viewModel.language.text("nextImage"))
-                .disabled(viewModel.images.isEmpty)
-                Picker("", selection: $viewModel.focusTool) {
-                    ForEach(FocusTool.allCases) { tool in
-                        Text(tool.displayName(language: viewModel.language)).tag(tool)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 240)
-                .help(viewModel.language.text("focusHelp"))
-                Button {
-                    viewModel.clearFocusAnnotationsForSelection()
-                } label: {
-                    Image(systemName: "eraser")
-                }
-                .help(viewModel.language.text("clearFocus"))
-                .disabled(viewModel.currentFocusAnnotations.isEmpty)
-                if !viewModel.currentFocusAnnotations.isEmpty {
-                    Text("\(viewModel.currentFocusAnnotations.count) \(viewModel.language.text("interestCount"))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
-            }
-            HStack(spacing: 16) {
-                FocusMarkingPreviewBox(
-                    title: viewModel.language.text("before"),
-                    image: viewModel.selectedImage?.preview,
-                    annotations: viewModel.currentFocusAnnotations,
-                    tool: viewModel.focusTool
-                ) { point, imageSize in
-                    viewModel.addFocusPoint(point, imageSize: imageSize)
-                } onZone: { rect, imageSize in
-                    viewModel.addFocusZone(rect, imageSize: imageSize)
-                }
-                DraggablePreviewBox(
-                    title: viewModel.language.text("after"),
-                    sourceImage: viewModel.selectedImage?.preview,
-                    renderedImage: viewModel.afterPreview,
-                    decision: viewModel.previewDecision,
-                    imageSize: viewModel.previewImageSize,
-                    aspectRatio: viewModel.previewFormat.aspectRatio,
-                    showRenderedPreview: viewModel.watermarkEnabled || viewModel.debugOverlay
-                ) { translation, size in
-                    viewModel.isDraggingPreview = true
-                    viewModel.applyPreviewDrag(translation, previewSize: size)
-                } onDragEnded: {
-                    viewModel.finishPreviewDrag()
-                }
-            }
-            if let decision = viewModel.previewDecision {
-                Text("Score \(String(format: "%.2f", Double(decision.score))) - \(decision.reason)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Grid(alignment: .leading) {
-                GridRow {
-                    KeyboardArrowIcon(axis: .horizontal)
-                        .help(viewModel.language.text("horizontal"))
-                    Slider(value: $viewModel.manualOffsetX, in: -2...2)
-                        .frame(minWidth: 120, maxWidth: 190)
-                    KeyboardArrowIcon(axis: .vertical)
-                        .help(viewModel.language.text("vertical"))
-                    Slider(value: $viewModel.manualOffsetY, in: -2...2)
-                        .frame(minWidth: 120, maxWidth: 190)
-                    Image(systemName: "magnifyingglass")
-                        .help(viewModel.language.text("zoom"))
-                    Slider(value: $viewModel.manualZoom, in: 0.35...3.0)
-                        .frame(minWidth: 120, maxWidth: 190)
-                }
-            }
-        }
     }
 
     private var report: some View {
@@ -468,6 +565,60 @@ struct ContentView: View {
         case .topRight: viewModel.language == .fr ? "Haut droite" : "Top right"
         case .topLeft: viewModel.language == .fr ? "Haut gauche" : "Top left"
         case .center: viewModel.language == .fr ? "Centre" : "Center"
+        }
+    }
+}
+
+struct MetricTile: View {
+    let title: String
+    let value: String
+    let symbol: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: symbol)
+                .foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline) {
+                Text(value)
+                    .font(.title2.weight(.semibold))
+                Spacer()
+            }
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quinary)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+struct SettingsSection<Content: View>: View {
+    let title: String
+    let symbol: String
+    @ViewBuilder let content: Content
+
+    init(title: String, symbol: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.symbol = symbol
+        self.content = content()
+    }
+
+    var body: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Image(systemName: symbol)
+                    Text(title)
+                        .font(.headline)
+                    Spacer()
+                }
+                .foregroundStyle(.primary)
+                content
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }

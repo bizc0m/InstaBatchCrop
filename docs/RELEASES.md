@@ -2,16 +2,17 @@
 
 ## Version stable actuelle
 
-- Version: `v2.0`
-- Tag Git: <https://github.com/bizc0m/InstaBatchCrop/releases/tag/v2.0>
-- App locale: `dist/2.0/InstaBatch Crop V2.0.app`
-- ZIP local: `dist/2.0/InstaBatch-Crop-V2.0.app.zip`
+- Version: `v2.3`
+- Tag Git: <https://github.com/bizc0m/InstaBatchCrop/releases/tag/v2.3>
+- App locale: `dist/2.3/InstaBatch Crop V2.3.app`
+- ZIP local: `dist/2.3/InstaBatch-Crop-V2.3.app.zip`
 
 ## Versions conservees
 
 - `v0.7`: premiere version validee, conservee sans modification.
 - `v1.54`: sauvegarde intermediaire.
-- `v2.0`: version stable actuelle.
+- `v2.0`: version stable publique preservee.
+- `v2.3`: refonte UX macOS actuelle.
 
 ## Politique
 

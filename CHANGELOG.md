@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.3 - 2026-07-26
+
+- Sauvegarde de l'etat public precedent sur la branche `backup/v2-current-before-2.3-ux`.
+- Refonte UX macOS en trois zones redimensionnables: sidebar images, workspace preview, inspector reglages.
+- Ajout toolbar macOS avec import fichiers, import dossier, actualisation apercu et export batch.
+- Sidebar enrichie avec zone de drop, compteurs, liste d'images et action batch principale.
+- Apercu avant/apres mis au centre avec navigation, outils de focus et corrections X/Y/Zoom.
+- Reglages de formats, cadrage, export et watermark deplaces dans un inspector droit.
+- Build autonome `dist/2.3/InstaBatch Crop V2.3.app`, signe ad hoc, ZIP et checksum generes.
+
 ## Documentation - 2026-07-26
 
 - README principal traduit en anglais pour GitHub.
