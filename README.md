@@ -1,14 +1,21 @@
 # InstaBatch Crop
 
+<p align="center">
+  <img src="assets/icon.png" width="120" alt="InstaBatch Crop icon">
+</p>
+
 Application macOS native pour recadrer automatiquement des images aux formats Instagram, en gardant les sujets importants dans le cadre.
 
 ![Apercu de l'application](assets/screenshots/app-main.png)
 
 ## Telecharger
 
-- Version stable: [v2.0](https://github.com/bizc0m/InstaBatchCrop/releases/tag/v2.0)
+- [Telecharger directement l'app macOS V2.0](https://github.com/bizc0m/InstaBatchCrop/releases/download/v2.0/InstaBatch-Crop-V2.0.app.zip)
+- Page de release: [v2.0](https://github.com/bizc0m/InstaBatchCrop/releases/tag/v2.0)
 - Application compilee dans le repo: `dist/2.0/InstaBatch Crop V2.0.app`
 - Archive ZIP: `dist/2.0/InstaBatch-Crop-V2.0.app.zip`
+
+Note: si le depot GitHub est prive, le telechargement direct fonctionne uniquement avec un compte GitHub autorise.
 
 ## Lancer l'application
 
