@@ -335,36 +335,27 @@ struct ContentView: View {
 
     private var preview: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(viewModel.language.text("exportPreview"))
-                .font(.headline)
-            HStack(spacing: 10) {
-                Button(viewModel.language.text("refresh")) {
+            HStack(spacing: 8) {
+                Text(viewModel.language.text("exportPreview"))
+                    .font(.headline)
+                Spacer(minLength: 12)
+                compactIconButton("arrow.clockwise", help: viewModel.language.text("refresh")) {
                     Task { await viewModel.generatePreview() }
                 }
                 .disabled(viewModel.selectedImage == nil)
-                Button {
+                compactIconButton("arrow.counterclockwise", help: viewModel.language.text("resetManual")) {
                     viewModel.resetManualCorrection()
-                } label: {
-                    Image(systemName: "arrow.counterclockwise")
                 }
-                .help(viewModel.language.text("resetManual"))
                 .disabled(viewModel.previewDecision == nil)
-                Spacer(minLength: 0)
-            }
-            HStack(spacing: 8) {
-                Button {
+                Divider()
+                    .frame(height: 18)
+                compactIconButton("chevron.left", help: viewModel.language.text("previousImage")) {
                     viewModel.selectPreviousImage()
-                } label: {
-                    Image(systemName: "chevron.left")
                 }
-                .help(viewModel.language.text("previousImage"))
                 .disabled(viewModel.images.isEmpty)
-                Button {
+                compactIconButton("chevron.right", help: viewModel.language.text("nextImage")) {
                     viewModel.selectNextImage()
-                } label: {
-                    Image(systemName: "chevron.right")
                 }
-                .help(viewModel.language.text("nextImage"))
                 .disabled(viewModel.images.isEmpty)
                 Picker("", selection: $viewModel.focusTool) {
                     ForEach(FocusTool.allCases) { tool in
@@ -372,22 +363,18 @@ struct ContentView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 240)
+                .frame(width: 190)
                 .help(viewModel.language.text("focusHelp"))
-                Button {
+                compactIconButton("eraser", help: viewModel.language.text("clearFocus")) {
                     viewModel.clearFocusAnnotationsForSelection()
-                } label: {
-                    Image(systemName: "eraser")
                 }
-                .help(viewModel.language.text("clearFocus"))
                 .disabled(viewModel.currentFocusAnnotations.isEmpty)
-                if !viewModel.currentFocusAnnotations.isEmpty {
-                    Text("\(viewModel.currentFocusAnnotations.count) \(viewModel.language.text("interestCount"))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
+                Text(viewModel.currentFocusAnnotations.isEmpty ? "" : "\(viewModel.currentFocusAnnotations.count)")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 22, alignment: .leading)
             }
+            .controlSize(.small)
             HStack(spacing: 16) {
                 FocusMarkingPreviewBox(
                     title: viewModel.language.text("before"),
@@ -436,6 +423,15 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    private func compactIconButton(_ systemName: String, help: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .frame(width: 18, height: 18)
+        }
+        .buttonStyle(.bordered)
+        .help(help)
     }
 
     private var report: some View {
