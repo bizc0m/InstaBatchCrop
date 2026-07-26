@@ -4,76 +4,77 @@
   <img src="assets/icon.png" width="120" alt="InstaBatch Crop icon">
 </p>
 
-Application macOS native pour recadrer automatiquement des images aux formats Instagram, en gardant les sujets importants dans le cadre.
+Native macOS app for batch-cropping images to Instagram formats while keeping important subjects inside the frame.
 
-![Apercu de l'application](assets/screenshots/app-main.png)
+![App preview](assets/screenshots/app-main.png)
 
-## Telecharger
+## Download
 
-- [Telecharger directement l'app macOS V2.0](https://github.com/bizc0m/InstaBatchCrop/releases/download/v2.0/InstaBatch-Crop-V2.0.app.zip)
-- Page de release: [v2.0](https://github.com/bizc0m/InstaBatchCrop/releases/tag/v2.0)
-- Application compilee dans le repo: `dist/2.0/InstaBatch Crop V2.0.app`
-- Archive ZIP: `dist/2.0/InstaBatch-Crop-V2.0.app.zip`
+- [Download the macOS app V2.0 directly](https://github.com/bizc0m/InstaBatchCrop/releases/download/v2.0/InstaBatch-Crop-V2.0.app.zip)
+- Release page: [v2.0](https://github.com/bizc0m/InstaBatchCrop/releases/tag/v2.0)
+- Compiled app in the repository: `dist/2.0/InstaBatch Crop V2.0.app`
+- ZIP archive: `dist/2.0/InstaBatch-Crop-V2.0.app.zip`
 
-Note: si le depot GitHub est prive, le telechargement direct fonctionne uniquement avec un compte GitHub autorise.
+Note: if the GitHub repository is private, the direct download link only works for authorized GitHub accounts.
 
-## Lancer l'application
+## Quick Start
 
-1. Ouvrir `dist/2.0/InstaBatch Crop V2.0.app`.
-2. Si macOS bloque l'ouverture: clic droit sur l'app, puis `Ouvrir`.
-3. Glisser-deposer des photos dans la zone de gauche.
-4. Choisir les formats Instagram.
-5. Cliquer `Traiter toutes les photos`.
+1. Open `dist/2.0/InstaBatch Crop V2.0.app`.
+2. If macOS blocks the app, right-click it and choose `Open`.
+3. Drag and drop photos into the left panel.
+4. Select the Instagram formats you need.
+5. Click `Traiter toutes les photos` / `Process all photos`.
 
-Les fichiers sources ne sont jamais modifies. L'application cree un dossier d'export a cote des images.
+Source files are never modified. The app creates an export folder next to the original images.
 
-## Fonctionnalites
+## Features
 
-- Formats Instagram: portrait 4:5, carre 1:1, story 9:16.
-- Import par fichiers, dossier ou glisser-deposer.
-- File d'images avec selection, suppression et nettoyage complet.
-- Analyse locale Vision: visages, corps humains, animaux si disponibles, saillance.
-- Points et zones d'interet manuels par photo.
-- Apercu avant / apres.
-- Deplacement direct du cadrage dans l'aperçu apres.
-- Reglages de cadrage avec fleches et zoom.
-- Export JPEG, PNG et WebP.
-- Reglage `Compression` pour JPEG.
-- Watermark texte optionnel: couleur, position, opacite, taille, marge.
-- Watermark image/logo transparent optionnel.
-- Interface FR / EN.
-- Application autonome signee ad hoc.
+- Instagram formats: portrait 4:5, square 1:1, story 9:16.
+- Import files, folders, or drag-and-drop images.
+- Image queue with selection, removal, and full cleanup.
+- Local Vision analysis: faces, human bodies, animals when available, saliency.
+- Manual focus points and focus zones per image.
+- Before / after export preview.
+- Direct crop movement inside the after preview.
+- Crop adjustment with arrow controls and zoom.
+- JPEG, PNG, and WebP export.
+- `Compression` control for JPEG.
+- Optional text watermark: color, position, opacity, size, margin.
+- Optional transparent image/logo watermark.
+- FR / EN interface.
+- Standalone ad hoc signed macOS app.
 
 ## Documentation
 
-- [Installation](docs/INSTALL.md)
-- [Guide utilisateur](docs/USER_GUIDE.md)
-- [Versions et releases](docs/RELEASES.md)
+- [Install](docs/INSTALL.md)
+- [User guide](docs/USER_GUIDE.md)
+- [Versions and releases](docs/RELEASES.md)
 - [Changelog](CHANGELOG.md)
+- [Reddit post draft](docs/REDDIT_POST.md)
 
-## Structure du depot
+## Repository Structure
 
 ```text
 InstaBatchCrop/
-├── InstaBatchCrop/          # Interface SwiftUI
-├── InstaBatchCropCore/      # Moteur de cadrage, export, watermark
-├── InstaBatchCropTests/     # Tests unitaires et integration
+├── InstaBatchCrop/          # SwiftUI interface
+├── InstaBatchCropCore/      # Crop engine, export, watermark
+├── InstaBatchCropTests/     # Unit and integration tests
 ├── assets/
-│   ├── icon.png             # Icone lisible pour GitHub
-│   ├── AppIcon.png          # Source de l'icone app
-│   ├── AppIcon.icns         # Icone macOS
-│   └── screenshots/         # Captures README
+│   ├── icon.png             # GitHub-visible icon
+│   ├── AppIcon.png          # Source app icon
+│   ├── AppIcon.icns         # macOS app icon
+│   └── screenshots/         # README screenshots
 ├── dist/
-│   ├── 0.7/                 # Ancienne version preservee
+│   ├── 0.7/                 # Preserved older release
 │   ├── 1.54/
-│   └── 2.0/                 # Version stable actuelle
+│   └── 2.0/                 # Current stable version
 ├── docs/
 └── logs/
 ```
 
-## Compiler depuis les sources
+## Build from Source
 
-Prerequis: macOS avec Xcode 26.x ou Swift 6.x.
+Requirements: macOS with Xcode 26.x or Swift 6.x.
 
 ```bash
 cd /Users/JOB/#DEV/02-apps/InstaBatchCrop
@@ -81,22 +82,22 @@ swift test
 xcodebuild -scheme InstaBatchCrop -destination 'platform=macOS' build
 ```
 
-Dans Xcode: ouvrir `Package.swift`, puis lancer le scheme `InstaBatchCrop`.
+In Xcode: open `Package.swift`, then run the `InstaBatchCrop` scheme.
 
 ## Tests
 
-Commande validee localement:
+Locally validated command:
 
 ```bash
 swift test
 ```
 
-Resultat connu pour v2.0: 19 tests passes.
+Known v2.0 result: 19 tests passing.
 
-## Notes techniques
+## Technical Notes
 
-- `Compression` est significatif pour JPEG.
-- PNG est sans perte et ignore la compression qualite ImageIO.
-- WebP peut interpreter cette valeur selon le support ImageIO disponible sur macOS.
-- Le watermark est rendu localement, sans service externe.
-- L'application est signee ad hoc localement, mais pas notarisee Apple.
+- `Compression` is meaningful for JPEG.
+- PNG is lossless and ignores ImageIO quality compression.
+- WebP may interpret the value depending on the ImageIO support available on macOS.
+- Watermark rendering is local and does not use any external service.
+- The app is ad hoc signed locally, but not Apple-notarized.

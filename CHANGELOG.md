@@ -2,6 +2,8 @@
 
 ## Documentation - 2026-07-26
 
+- README principal traduit en anglais pour GitHub.
+- Ajout d'un brouillon de post Reddit dans `docs/REDDIT_POST.md`.
 - Ajout d'une structure GitHub plus lisible pour debutants.
 - Ajout capture README dans `assets/screenshots/app-main.png`.
 - Ajout icone lisible dans `assets/icon.png`.
