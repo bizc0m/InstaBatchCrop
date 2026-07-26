@@ -10,16 +10,16 @@ Native macOS app for batch-cropping images to Instagram formats while keeping im
 
 ## Download
 
-- [Download the macOS app V2.3 directly](https://github.com/bizc0m/InstaBatchCrop/releases/download/v2.3/InstaBatch-Crop-V2.3.app.zip)
-- Release page: [v2.3](https://github.com/bizc0m/InstaBatchCrop/releases/tag/v2.3)
-- Compiled app in the repository: `dist/2.3/InstaBatch Crop V2.3.app`
-- ZIP archive: `dist/2.3/InstaBatch-Crop-V2.3.app.zip`
+- [Download the macOS app V2.4 directly](https://github.com/bizc0m/InstaBatchCrop/releases/download/v2.4/InstaBatch-Crop-V2.4.app.zip)
+- Release page: [v2.4](https://github.com/bizc0m/InstaBatchCrop/releases/tag/v2.4)
+- Compiled app in the repository: `dist/2.4/InstaBatch Crop V2.4.app`
+- ZIP archive: `dist/2.4/InstaBatch-Crop-V2.4.app.zip`
 
 Note: if the GitHub repository is private, the direct download link only works for authorized GitHub accounts.
 
 ## Quick Start
 
-1. Open `dist/2.3/InstaBatch Crop V2.3.app`.
+1. Open `dist/2.4/InstaBatch Crop V2.4.app`.
 2. If macOS blocks the app, right-click it and choose `Open`.
 3. Drag and drop photos into the left panel.
 4. Select the Instagram formats you need.
@@ -68,7 +68,8 @@ InstaBatchCrop/
 │   ├── 0.7/                 # Preserved older release
 │   ├── 1.54/
 │   ├── 2.0/                 # Preserved stable release
-│   └── 2.3/                 # Current UX release
+│   ├── 2.3/                 # Preserved three-pane UX experiment
+│   └── 2.4/                 # Current simple UX release
 ├── docs/
 └── logs/
 ```
@@ -93,7 +94,7 @@ Locally validated command:
 swift test
 ```
 
-Known v2.3 result: 19 tests passing.
+Known v2.4 result: 19 tests passing.
 
 ## Technical Notes
 

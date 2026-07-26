@@ -31,7 +31,7 @@ GitHub:
 https://github.com/bizc0m/InstaBatchCrop
 
 Direct download:
-https://github.com/bizc0m/InstaBatchCrop/releases/download/v2.3/InstaBatch-Crop-V2.3.app.zip
+https://github.com/bizc0m/InstaBatchCrop/releases/download/v2.4/InstaBatch-Crop-V2.4.app.zip
 
 It is currently ad hoc signed, not notarized, so macOS may require right-click > Open on first launch.
 
@@ -49,6 +49,6 @@ GitHub:
 https://github.com/bizc0m/InstaBatchCrop
 
 Download:
-https://github.com/bizc0m/InstaBatchCrop/releases/download/v2.3/InstaBatch-Crop-V2.3.app.zip
+https://github.com/bizc0m/InstaBatchCrop/releases/download/v2.4/InstaBatch-Crop-V2.4.app.zip
 
 Note: it is ad hoc signed, not notarized yet, so first launch may need right-click > Open.

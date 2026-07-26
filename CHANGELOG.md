@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.4 - 2026-07-26
+
+- Sauvegarde de la refonte V2.3 sur la branche `backup/v2.3-ux-saved`.
+- Retour au design V2.0/V2.1 plus direct, sans layout trois panneaux.
+- Optimisations simples: fenetre minimale plus large, colonne images plus confortable, boutons d'import avec icones, et etat vide plus lisible.
+- Build autonome `dist/2.4/InstaBatch Crop V2.4.app`, signe ad hoc, ZIP et checksum generes.
+
 ## 2.3 - 2026-07-26
 
 - Sauvegarde de l'etat public precedent sur la branche `backup/v2-current-before-2.3-ux`.
