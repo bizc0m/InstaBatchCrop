@@ -32,6 +32,8 @@ private extension AppLanguage {
             "position": "Position",
             "opacity": "Opacite",
             "watermarkSize": "Taille watermark",
+            "advanced": "Avance",
+            "manualAdjustments": "Ajustements",
             "exportPreview": "Apercu export",
             "refresh": "Actualiser",
             "moveCrop": "Deplacer le cadrage dans l'apercu apres",
@@ -76,6 +78,8 @@ private extension AppLanguage {
             "position": "Position",
             "opacity": "Opacity",
             "watermarkSize": "Watermark size",
+            "advanced": "Advanced",
+            "manualAdjustments": "Adjustments",
             "exportPreview": "Export preview",
             "refresh": "Refresh",
             "moveCrop": "Move crop in the after preview",
@@ -113,6 +117,31 @@ struct ContentView: View {
         .frame(minWidth: 1180, minHeight: 780)
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             viewModel.handleDrop(providers)
+        }
+        .focusable()
+        .onMoveCommand { direction in
+            switch direction {
+            case .up:
+                viewModel.selectPreviousImage()
+            case .down:
+                viewModel.selectNextImage()
+            case .left:
+                viewModel.selectPreviousPreviewFormat()
+            case .right:
+                viewModel.selectNextPreviewFormat()
+            default:
+                break
+            }
+        }
+        .background {
+            KeyboardNavigationMonitor(
+                isEnabled: !viewModel.images.isEmpty,
+                onPrevious: { viewModel.selectPreviousImage() },
+                onNext: { viewModel.selectNextImage() },
+                onPreviousFormat: { viewModel.selectPreviousPreviewFormat() },
+                onNextFormat: { viewModel.selectNextPreviewFormat() }
+            )
+            .frame(width: 0, height: 0)
         }
     }
 
@@ -185,8 +214,11 @@ struct ContentView: View {
             }
 
             ProgressView(value: viewModel.progress)
-            Button(viewModel.language.text("processAll")) {
+            Button {
                 Task { await viewModel.processAll() }
+            } label: {
+                Label(viewModel.language.text("processAll"), systemImage: "square.and.arrow.down")
+                    .frame(maxWidth: .infinity)
             }
             .disabled(viewModel.images.isEmpty || viewModel.selectedFormats.isEmpty || viewModel.isProcessing)
             .buttonStyle(.borderedProminent)
@@ -251,73 +283,80 @@ struct ContentView: View {
                 Text("\(Int(viewModel.margin * 100))%")
                     .frame(width: 48, alignment: .trailing)
             }
-            ControlRow(viewModel.language.text("export")) {
-                Picker("", selection: $viewModel.exportType) {
-                    ForEach(ExportFileType.allCases) { Text($0.rawValue.uppercased()).tag($0) }
+            DisclosureGroup {
+                VStack(alignment: .leading, spacing: 12) {
+                    ControlRow(viewModel.language.text("export")) {
+                        Picker("", selection: $viewModel.exportType) {
+                            ForEach(ExportFileType.allCases) { Text($0.rawValue.uppercased()).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 230)
+                        Toggle(viewModel.language.text("metadata"), isOn: $viewModel.preserveMetadata)
+                    }
+                    ControlRow(viewModel.language.text("compression")) {
+                        Slider(value: $viewModel.jpegQuality, in: 0.5...1.0)
+                            .frame(minWidth: 120, maxWidth: 280)
+                        Toggle(viewModel.language.text("debugBoxes"), isOn: $viewModel.debugOverlay)
+                    }
+                    ControlRow(viewModel.language.text("watermark")) {
+                        Toggle(viewModel.language.text("active"), isOn: $viewModel.watermarkEnabled)
+                        TextField(viewModel.language.text("text"), text: Binding(
+                            get: { viewModel.watermarkText },
+                            set: { viewModel.updateWatermarkText($0) }
+                        ))
+                            .textFieldStyle(.roundedBorder)
+                            .frame(minWidth: 120, maxWidth: 220)
+                        ColorPicker("", selection: Binding(
+                            get: { viewModel.watermarkColor },
+                            set: { viewModel.updateWatermarkColor($0) }
+                        ))
+                            .labelsHidden()
+                            .frame(width: 44)
+                        Button(viewModel.language.text("logo")) {
+                            viewModel.selectWatermarkImage()
+                        }
+                        .help(viewModel.language.text("logoHelp"))
+                        Button {
+                            viewModel.clearWatermarkImage()
+                        } label: {
+                            Image(systemName: "xmark.circle")
+                        }
+                        .help(viewModel.language.text("clearLogo"))
+                        .disabled(viewModel.watermarkImageURL == nil)
+                    }
+                    if let logoName = viewModel.watermarkImageURL?.lastPathComponent {
+                        ControlRow(viewModel.language.text("activeLogo")) {
+                            Text(logoName)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    ControlRow(viewModel.language.text("position")) {
+                        Picker("", selection: $viewModel.watermarkPosition) {
+                            ForEach(WatermarkPosition.allCases) { Text(watermarkPositionName($0)).tag($0) }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(width: 150)
+                        HStack {
+                            Text(viewModel.language.text("opacity"))
+                            Slider(value: $viewModel.watermarkOpacity, in: 0.05...1.0)
+                        }
+                        .frame(minWidth: 140, maxWidth: 220)
+                    }
+                    ControlRow(viewModel.language.text("watermarkSize")) {
+                        Slider(value: $viewModel.watermarkSize, in: 12...120)
+                            .frame(minWidth: 120, maxWidth: 220)
+                        HStack {
+                            Text(viewModel.language.text("margin"))
+                            Slider(value: $viewModel.watermarkMargin, in: 0...160)
+                        }
+                        .frame(minWidth: 120, maxWidth: 220)
+                    }
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 230)
-                Toggle(viewModel.language.text("metadata"), isOn: $viewModel.preserveMetadata)
-            }
-            ControlRow(viewModel.language.text("compression")) {
-                Slider(value: $viewModel.jpegQuality, in: 0.5...1.0)
-                    .frame(minWidth: 120, maxWidth: 340)
-                Toggle(viewModel.language.text("debugBoxes"), isOn: $viewModel.debugOverlay)
-            }
-            ControlRow(viewModel.language.text("watermark")) {
-                Toggle(viewModel.language.text("active"), isOn: $viewModel.watermarkEnabled)
-                TextField(viewModel.language.text("text"), text: Binding(
-                    get: { viewModel.watermarkText },
-                    set: { viewModel.updateWatermarkText($0) }
-                ))
-                    .textFieldStyle(.roundedBorder)
-                    .frame(minWidth: 140, maxWidth: 260)
-                ColorPicker("", selection: Binding(
-                    get: { viewModel.watermarkColor },
-                    set: { viewModel.updateWatermarkColor($0) }
-                ))
-                    .labelsHidden()
-                    .frame(width: 44)
-                Button(viewModel.language.text("logo")) {
-                    viewModel.selectWatermarkImage()
-                }
-                .help(viewModel.language.text("logoHelp"))
-                Button {
-                    viewModel.clearWatermarkImage()
-                } label: {
-                    Image(systemName: "xmark.circle")
-                }
-                .help(viewModel.language.text("clearLogo"))
-                .disabled(viewModel.watermarkImageURL == nil)
-            }
-            if let logoName = viewModel.watermarkImageURL?.lastPathComponent {
-                ControlRow(viewModel.language.text("activeLogo")) {
-                    Text(logoName)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            ControlRow(viewModel.language.text("position")) {
-                Picker("", selection: $viewModel.watermarkPosition) {
-                    ForEach(WatermarkPosition.allCases) { Text(watermarkPositionName($0)).tag($0) }
-                }
-                .pickerStyle(.menu)
-                .frame(width: 150)
-                HStack {
-                    Text(viewModel.language.text("opacity"))
-                    Slider(value: $viewModel.watermarkOpacity, in: 0.05...1.0)
-                }
-                .frame(minWidth: 160, maxWidth: 260)
-            }
-            ControlRow(viewModel.language.text("watermarkSize")) {
-                Slider(value: $viewModel.watermarkSize, in: 12...120)
-                    .frame(minWidth: 120, maxWidth: 240)
-                HStack {
-                    Text(viewModel.language.text("margin"))
-                    Slider(value: $viewModel.watermarkMargin, in: 0...160)
-                }
-                .frame(minWidth: 120, maxWidth: 240)
+            } label: {
+                Text(viewModel.language.text("advanced"))
+                    .font(.body.weight(.semibold))
             }
         }
         .onChange(of: viewModel.cropMode) { _, _ in viewModel.requestPreviewRefresh() }
@@ -347,13 +386,17 @@ struct ContentView: View {
                     viewModel.resetManualCorrection()
                 }
                 .disabled(viewModel.previewDecision == nil)
+                Text(outputFormatName(viewModel.previewFormat))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 88, alignment: .center)
                 Divider()
                     .frame(height: 18)
-                compactIconButton("chevron.left", help: viewModel.language.text("previousImage")) {
+                compactIconButton("chevron.up", help: viewModel.language.text("previousImage")) {
                     viewModel.selectPreviousImage()
                 }
                 .disabled(viewModel.images.isEmpty)
-                compactIconButton("chevron.right", help: viewModel.language.text("nextImage")) {
+                compactIconButton("chevron.down", help: viewModel.language.text("nextImage")) {
                     viewModel.selectNextImage()
                 }
                 .disabled(viewModel.images.isEmpty)
@@ -397,6 +440,8 @@ struct ContentView: View {
                 ) { translation, size in
                     viewModel.isDraggingPreview = true
                     viewModel.applyPreviewDrag(translation, previewSize: size)
+                } onZoomChanged: { scaleDelta, size in
+                    viewModel.applyPreviewZoom(scaleDelta: scaleDelta, previewSize: size)
                 } onDragEnded: {
                     viewModel.finishPreviewDrag()
                 }
@@ -406,22 +451,31 @@ struct ContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Grid(alignment: .leading) {
-                GridRow {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(viewModel.language.text("manualAdjustments"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 10) {
                     KeyboardArrowIcon(axis: .horizontal)
                         .help(viewModel.language.text("horizontal"))
                     Slider(value: $viewModel.manualOffsetX, in: -2...2)
-                        .frame(minWidth: 120, maxWidth: 190)
+                        .frame(minWidth: 90, maxWidth: 150)
                     KeyboardArrowIcon(axis: .vertical)
                         .help(viewModel.language.text("vertical"))
                     Slider(value: $viewModel.manualOffsetY, in: -2...2)
-                        .frame(minWidth: 120, maxWidth: 190)
+                        .frame(minWidth: 90, maxWidth: 150)
                     Image(systemName: "magnifyingglass")
+                        .frame(width: 24, height: 24)
                         .help(viewModel.language.text("zoom"))
                     Slider(value: $viewModel.manualZoom, in: 0.35...3.0)
-                        .frame(minWidth: 120, maxWidth: 190)
+                        .frame(minWidth: 90, maxWidth: 150)
                 }
             }
+            .controlSize(.small)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(.quaternary.opacity(0.55))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
     }
 
@@ -574,7 +628,7 @@ struct PreviewBox: View {
                         .padding(6)
                 }
             }
-            .frame(height: 280)
+            .frame(height: 320)
             .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .frame(maxWidth: .infinity)
@@ -675,7 +729,7 @@ struct FocusMarkingPreviewBox: View {
                         }
                     })
             }
-            .frame(height: 280)
+            .frame(height: 320)
         }
         .frame(maxWidth: .infinity)
     }
@@ -721,9 +775,12 @@ struct DraggablePreviewBox: View {
     let aspectRatio: CGFloat
     let showRenderedPreview: Bool
     let onDragChanged: (CGSize, CGSize) -> Void
+    let onZoomChanged: (CGFloat, CGSize) -> Void
     let onDragEnded: () -> Void
     @State private var liveDrag: CGSize = .zero
     @State private var lastTranslation: CGSize = .zero
+    @State private var lastMagnification: CGFloat = 1
+    @State private var isHovering = false
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -775,10 +832,28 @@ struct DraggablePreviewBox: View {
                             lastTranslation = .zero
                             onDragEnded()
                         } : nil)
+                    .simultaneousGesture((sourceImage != nil && decision != nil) ? MagnificationGesture()
+                        .onChanged { value in
+                            let scaleDelta = value / max(0.01, lastMagnification)
+                            lastMagnification = value
+                            onZoomChanged(scaleDelta, frameSize)
+                        }
+                        .onEnded { _ in
+                            lastMagnification = 1
+                            onDragEnded()
+                        } : nil)
+                    .onHover { hovering in
+                        isHovering = hovering
+                    }
+                    ScrollWheelZoomMonitor(isEnabled: isHovering && sourceImage != nil && decision != nil) { scrollDelta in
+                        let scaleDelta = min(max(exp(scrollDelta * 0.01), 0.85), 1.15)
+                        onZoomChanged(scaleDelta, frameSize)
+                    }
+                    .frame(width: 0, height: 0)
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
-            .frame(height: 280)
+            .frame(height: 320)
         }
         .frame(maxWidth: .infinity)
     }
@@ -800,5 +875,133 @@ struct DraggablePreviewBox: View {
             size: renderedSize,
             center: CGPoint(x: origin.x + renderedSize.width / 2, y: origin.y + renderedSize.height / 2)
         )
+    }
+}
+
+struct ScrollWheelZoomMonitor: NSViewRepresentable {
+    var isEnabled: Bool
+    var onScroll: (CGFloat) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onScroll: onScroll)
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        context.coordinator.install()
+        return NSView(frame: .zero)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.isEnabled = isEnabled
+        context.coordinator.onScroll = onScroll
+    }
+
+    final class Coordinator {
+        var isEnabled = false
+        var onScroll: (CGFloat) -> Void
+        private var monitor: Any?
+
+        init(onScroll: @escaping (CGFloat) -> Void) {
+            self.onScroll = onScroll
+        }
+
+        func install() {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+                guard let self, self.isEnabled else { return event }
+                let delta = event.scrollingDeltaY != 0 ? event.scrollingDeltaY : -event.deltaY
+                guard delta != 0 else { return event }
+                self.onScroll(delta)
+                return nil
+            }
+        }
+
+        deinit {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
+        }
+    }
+}
+
+struct KeyboardNavigationMonitor: NSViewRepresentable {
+    var isEnabled: Bool
+    var onPrevious: () -> Void
+    var onNext: () -> Void
+    var onPreviousFormat: () -> Void
+    var onNextFormat: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(
+            onPrevious: onPrevious,
+            onNext: onNext,
+            onPreviousFormat: onPreviousFormat,
+            onNextFormat: onNextFormat
+        )
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        context.coordinator.install()
+        return NSView(frame: .zero)
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.isEnabled = isEnabled
+        context.coordinator.onPrevious = onPrevious
+        context.coordinator.onNext = onNext
+        context.coordinator.onPreviousFormat = onPreviousFormat
+        context.coordinator.onNextFormat = onNextFormat
+    }
+
+    final class Coordinator {
+        var isEnabled = false
+        var onPrevious: () -> Void
+        var onNext: () -> Void
+        var onPreviousFormat: () -> Void
+        var onNextFormat: () -> Void
+        private var monitor: Any?
+
+        init(
+            onPrevious: @escaping () -> Void,
+            onNext: @escaping () -> Void,
+            onPreviousFormat: @escaping () -> Void,
+            onNextFormat: @escaping () -> Void
+        ) {
+            self.onPrevious = onPrevious
+            self.onNext = onNext
+            self.onPreviousFormat = onPreviousFormat
+            self.onNextFormat = onNextFormat
+        }
+
+        func install() {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self, self.isEnabled, event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty else {
+                    return event
+                }
+                switch event.keyCode {
+                case 126:
+                    self.onPrevious()
+                    return nil
+                case 125:
+                    self.onNext()
+                    return nil
+                case 123:
+                    self.onPreviousFormat()
+                    return nil
+                case 124:
+                    self.onNextFormat()
+                    return nil
+                default:
+                    return event
+                }
+            }
+        }
+
+        deinit {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
+        }
     }
 }

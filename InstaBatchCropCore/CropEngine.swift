@@ -23,6 +23,34 @@ public struct CropEngine: Sendable {
         return adjusted
     }
 
+    public func zoomCrop(_ decision: CropDecision, imageSize: CGSize, scaleDelta: CGFloat) -> CropDecision {
+        guard scaleDelta.isFinite,
+              scaleDelta > 0,
+              imageSize.width > 1,
+              imageSize.height > 1 else {
+            return decision
+        }
+        var adjusted = decision
+        let imageRect = CGRect(origin: .zero, size: imageSize)
+        let aspectRatio = decision.cropRect.width / max(1, decision.cropRect.height)
+        let boundedScale = min(max(scaleDelta, 0.80), 1.25)
+        let maxWidth = min(imageSize.width, imageSize.height * aspectRatio)
+        let minWidth = max(32, maxWidth * 0.08)
+        let nextWidth = min(maxWidth, max(minWidth, decision.cropRect.width / boundedScale))
+        let nextHeight = nextWidth / aspectRatio
+        var rect = CGRect(
+            x: decision.cropRect.midX - nextWidth / 2,
+            y: decision.cropRect.midY - nextHeight / 2,
+            width: nextWidth,
+            height: nextHeight
+        )
+        rect = makePanRoomIfNeeded(rect, aspectRatio: aspectRatio, in: imageRect)
+        adjusted.cropRect = clamp(rect, in: imageRect).integral
+        adjusted.usesFallback = false
+        adjusted.reason = "Correction zoom"
+        return adjusted
+    }
+
     public func decide(
         imageSize: CGSize,
         observations: [SubjectObservation],

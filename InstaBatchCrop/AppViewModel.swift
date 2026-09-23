@@ -45,7 +45,12 @@ final class AppViewModel: ObservableObject {
             schedulePreviewRefresh()
         }
     }
-    @Published var selectedFormats: Set<OutputFormat> = [.portrait4x5, .square] { didSet { schedulePreviewRefresh() } }
+    @Published var selectedFormats: Set<OutputFormat> = [.portrait4x5, .square] {
+        didSet {
+            keepPreviewFormatSelectable()
+            schedulePreviewRefresh()
+        }
+    }
     @Published var cropMode: CropMode = .natural { didSet { schedulePreviewRefresh() } }
     @Published var fallbackMode: FallbackMode = .blurredBackground { didSet { schedulePreviewRefresh() } }
     @Published var margin: CGFloat = 0.14 { didSet { schedulePreviewRefresh() } }
@@ -84,6 +89,7 @@ final class AppViewModel: ObservableObject {
     private var primarySelectedID: ImportedImage.ID?
     private var lastPreviewAnalysis: (url: URL, imageSize: CGSize, observations: [SubjectObservation], format: OutputFormat)?
     private var previewRefreshTask: Task<Void, Never>?
+    private var manualPreviewRenderTask: Task<Void, Never>?
 
     var selectedImage: ImportedImage? {
         if let primarySelectedID,
@@ -98,12 +104,18 @@ final class AppViewModel: ObservableObject {
         return focusAnnotations[selectedImage.url.path] ?? []
     }
 
+    var selectablePreviewFormats: [OutputFormat] {
+        let formats = selectedFormats.isEmpty ? Set(OutputFormat.allCases) : selectedFormats
+        return formats.sorted { $0.rawValue < $1.rawValue }
+    }
+
     func setFormat(_ format: OutputFormat, enabled: Bool) {
         if enabled {
             selectedFormats.insert(format)
         } else {
             selectedFormats.remove(format)
         }
+        keepPreviewFormatSelectable(preferred: enabled ? format : nil)
         requestPreviewRefresh()
     }
 
@@ -205,7 +217,8 @@ final class AppViewModel: ObservableObject {
 
     func generatePreview() async {
         guard let image = selectedImage else { return }
-        let format = selectedFormats.sorted { $0.rawValue < $1.rawValue }.first ?? .portrait4x5
+        let format = selectablePreviewFormats.contains(previewFormat) ? previewFormat : (selectablePreviewFormats.first ?? .portrait4x5)
+        previewFormat = format
         do {
             let analysis = try analyzer.analyze(imageURL: image.url)
             let priorityObservations = focusObservations(for: image.url, imageSize: analysis.size)
@@ -263,18 +276,18 @@ final class AppViewModel: ObservableObject {
     }
 
     func requestPreviewRefresh() {
-        schedulePreviewRefresh(delayMilliseconds: 160)
+        schedulePreviewRefresh(delayMilliseconds: 70)
     }
 
     private func manualSliderChanged() {
         guard selectedImage != nil else { return }
         invalidateCurrentManualDecision()
-        schedulePreviewRefresh()
+        schedulePreviewRefresh(delayMilliseconds: 70)
     }
 
     func applyManualCrop() {
         guard let image = selectedImage, var decision = previewDecision else { return }
-        let format = selectedFormats.sorted { $0.rawValue < $1.rawValue }.first ?? .portrait4x5
+        let format = selectablePreviewFormats.contains(previewFormat) ? previewFormat : (selectablePreviewFormats.first ?? .portrait4x5)
         decision.usesFallback = false
         decision.reason = "Correction manuelle appliquee"
         manualDecisions[BatchProcessor.overrideKey(inputURL: image.url, format: format)] = decision
@@ -308,11 +321,31 @@ final class AppViewModel: ObservableObject {
         manualDecisions[key] = moved
         previewDecision = moved
         updateStatus(for: image.id, status: "Correction main")
+        scheduleManualPreviewRender()
+    }
+
+    func applyPreviewZoom(scaleDelta: CGFloat, previewSize: CGSize) {
+        guard let image = selectedImage,
+              let decision = previewDecision,
+              let analysis = lastPreviewAnalysis,
+              analysis.url == image.url,
+              previewSize.width > 1,
+              previewSize.height > 1 else { return }
+        let zoomed = engine.zoomCrop(
+            decision,
+            imageSize: analysis.imageSize,
+            scaleDelta: scaleDelta
+        )
+        let key = BatchProcessor.overrideKey(inputURL: image.url, format: analysis.format)
+        manualDecisions[key] = zoomed
+        previewDecision = zoomed
+        updateStatus(for: image.id, status: "Correction zoom")
+        scheduleManualPreviewRender()
     }
 
     func finishPreviewDrag() {
         isDraggingPreview = false
-        Task { await renderCurrentManualPreview() }
+        scheduleManualPreviewRender(delayMilliseconds: 0)
     }
 
     func selectPreviousImage() {
@@ -321,6 +354,14 @@ final class AppViewModel: ObservableObject {
 
     func selectNextImage() {
         selectRelativeImage(offset: 1)
+    }
+
+    func selectPreviousPreviewFormat() {
+        selectRelativePreviewFormat(offset: -1)
+    }
+
+    func selectNextPreviewFormat() {
+        selectRelativePreviewFormat(offset: 1)
     }
 
     func addFocusPoint(_ point: CGPoint, imageSize: CGSize) {
@@ -370,6 +411,15 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    private func scheduleManualPreviewRender(delayMilliseconds: UInt64 = 35) {
+        manualPreviewRenderTask?.cancel()
+        manualPreviewRenderTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: delayMilliseconds * 1_000_000)
+            guard !Task.isCancelled else { return }
+            await self?.renderCurrentManualPreview()
+        }
+    }
+
     func processAll() async {
         guard !images.isEmpty else { return }
         isProcessing = true
@@ -408,6 +458,25 @@ final class AppViewModel: ObservableObject {
         requestPreviewRefresh()
     }
 
+    private func selectRelativePreviewFormat(offset: Int) {
+        let formats = selectablePreviewFormats
+        guard formats.count > 1 else { return }
+        let currentIndex = formats.firstIndex(of: previewFormat) ?? 0
+        let nextIndex = (currentIndex + offset + formats.count) % formats.count
+        previewFormat = formats[nextIndex]
+        requestPreviewRefresh()
+    }
+
+    private func keepPreviewFormatSelectable(preferred: OutputFormat? = nil) {
+        if let preferred, selectedFormats.contains(preferred) {
+            previewFormat = preferred
+            return
+        }
+        guard !selectablePreviewFormats.contains(previewFormat),
+              let fallback = selectablePreviewFormats.first else { return }
+        previewFormat = fallback
+    }
+
     private func addFocusAnnotation(_ annotation: FocusAnnotation, for url: URL, imageSize: CGSize) {
         let imageRect = CGRect(origin: .zero, size: imageSize)
         let safeRect = annotation.rect.intersection(imageRect)
@@ -428,7 +497,7 @@ final class AppViewModel: ObservableObject {
 
     private func invalidateCurrentManualDecision() {
         guard let image = selectedImage else { return }
-        let format = selectedFormats.sorted { $0.rawValue < $1.rawValue }.first ?? .portrait4x5
+        let format = selectablePreviewFormats.contains(previewFormat) ? previewFormat : (selectablePreviewFormats.first ?? .portrait4x5)
         manualDecisions.removeValue(forKey: BatchProcessor.overrideKey(inputURL: image.url, format: format))
     }
 

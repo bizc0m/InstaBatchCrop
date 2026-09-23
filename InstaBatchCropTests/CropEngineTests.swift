@@ -137,6 +137,29 @@ struct CropEngineTests {
         #expect(moved.usesFallback == false)
     }
 
+    @Test func mouseZoomKeepsCropInsideInstagramFrame() {
+        let decision = CropDecision(
+            cropRect: CGRect(x: 400, y: 300, width: 800, height: 1000),
+            subjectRect: CGRect(x: 650, y: 620, width: 200, height: 260),
+            score: 0.9,
+            usesFallback: false,
+            reason: "Test"
+        )
+        let zoomed = engine.zoomCrop(
+            decision,
+            imageSize: CGSize(width: 1800, height: 1400),
+            scaleDelta: 1.15
+        )
+        #expect(zoomed.cropRect.width < decision.cropRect.width)
+        #expect(zoomed.cropRect.height < decision.cropRect.height)
+        #expect(zoomed.cropRect.minX >= 0)
+        #expect(zoomed.cropRect.minY >= 0)
+        #expect(zoomed.cropRect.maxX <= 1800)
+        #expect(zoomed.cropRect.maxY <= 1400)
+        #expect(abs((zoomed.cropRect.width / zoomed.cropRect.height) - (4.0 / 5.0)) < 0.01)
+        #expect(zoomed.usesFallback == false)
+    }
+
     @Test func manualFocusAnnotationsHavePriorityWeight() {
         let point = FocusAnnotation(
             kind: .point,
