@@ -83,7 +83,10 @@ public final class BatchProcessor: Sendable {
         }
     }
 
-    public static func makeExportDirectory(near urls: [URL]) -> URL {
+    public static func makeExportDirectory(near urls: [URL], customDirectory: URL? = nil) -> URL {
+        if let customDirectory, FileManager.default.fileExists(atPath: customDirectory.path) {
+            return customDirectory
+        }
         let base = urls.first?.deletingLastPathComponent() ?? FileManager.default.homeDirectoryForCurrentUser
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd_HHmmss"

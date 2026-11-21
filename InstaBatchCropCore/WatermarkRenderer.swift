@@ -42,6 +42,7 @@ public struct WatermarkRenderer: Sendable {
     }
 
     private func drawText(in context: CGContext, outputSize: CGSize, settings: WatermarkSettings) {
+        let substitutedText = substituteVariables(settings.text)
         let font = CTFontCreateWithName("HelveticaNeue-Semibold" as CFString, settings.size, nil)
         let color = CGColor(
             red: min(max(settings.color.red, 0), 1),
@@ -53,7 +54,7 @@ public struct WatermarkRenderer: Sendable {
             kCTFontAttributeName: font,
             kCTForegroundColorAttributeName: color
         ]
-        let attributed = CFAttributedStringCreate(nil, settings.text as CFString, attributes as CFDictionary)!
+        let attributed = CFAttributedStringCreate(nil, substitutedText as CFString, attributes as CFDictionary)!
         let line = CTLineCreateWithAttributedString(attributed)
         let bounds = CTLineGetBoundsWithOptions(line, [.useOpticalBounds])
         let textSize = CGSize(width: ceil(bounds.width), height: ceil(settings.size * 1.25))
@@ -111,5 +112,91 @@ public struct WatermarkRenderer: Sendable {
             CGPoint(x: (outputSize.width - textSize.width) / 2, y: (outputSize.height - textSize.height) / 2)
         }
         return CGRect(origin: origin, size: textSize)
+    }
+
+    private func substituteVariables(_ text: String) -> String {
+        var result = text
+
+        // Remplacer les variables dynamiques
+        result = result.replacingOccurrences(of: "$date", with: Self.dateString())
+        result = result.replacingOccurrences(of: "$time", with: Self.timeString())
+        result = result.replacingOccurrences(of: "$datetime", with: Self.dateTimeString())
+        result = result.replacingOccurrences(of: "$day", with: Self.dayString())
+        result = result.replacingOccurrences(of: "$month", with: Self.monthString())
+        result = result.replacingOccurrences(of: "$year", with: Self.yearString())
+        result = result.replacingOccurrences(of: "$user", with: Self.userString())
+        result = result.replacingOccurrences(of: "$clipboard", with: Self.clipboardString())
+
+        // Remplacer les variables EXIF
+        result = result.replacingOccurrences(of: "$EXIF", with: Self.exifString())
+
+        // Remplacer les variables personnalisées
+        result = result.replacingOccurrences(of: "$VILLE", with: Self.cityString())
+        result = result.replacingOccurrences(of: "$PAYS", with: Self.countryString())
+
+        return result
+    }
+
+    private static func dateString() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
+    }
+
+    private static func timeString() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        return formatter.string(from: Date())
+    }
+
+    private static func dateTimeString() -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .medium
+        return formatter.string(from: Date())
+    }
+
+    private static func dayString() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        return formatter.string(from: Date())
+    }
+
+    private static func monthString() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM"
+        return formatter.string(from: Date())
+    }
+
+    private static func yearString() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy"
+        return formatter.string(from: Date())
+    }
+
+    private static func userString() -> String {
+        return NSUserName()
+    }
+
+    private static func clipboardString() -> String {
+        guard let pasteboard = NSPasteboard.general.string(forType: .string) else {
+            return ""
+        }
+        return pasteboard
+    }
+
+    private static func exifString() -> String {
+        // Implémentation simplifiée - dans une vraie implémentation, il faudrait extraire les données EXIF réelles
+        return "EXIF_DATA"
+    }
+
+    private static func cityString() -> String {
+        // Implémentation simplifiée - dans une vraie implémentation, il faudrait utiliser un service de géolocalisation
+        return "Ville"
+    }
+
+    private static func countryString() -> String {
+        // Implémentation simplifiée - dans une vraie implémentation, il faudrait utiliser un service de géolocalisation
+        return "Pays"
     }
 }
