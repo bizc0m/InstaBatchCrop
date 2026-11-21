@@ -79,6 +79,7 @@ final class AppViewModel: ObservableObject {
     @Published var watermarkOpacity: CGFloat = 0.45 { didSet { schedulePreviewRefresh() } }
     @Published var watermarkSize: CGFloat = 42 { didSet { schedulePreviewRefresh() } }
     @Published var watermarkMargin: CGFloat = 48 { didSet { schedulePreviewRefresh() } }
+    @Published var customExportDirectory: URL?
 
     private let processor = BatchProcessor()
     private let analyzer = VisionSubjectAnalyzer()
@@ -426,7 +427,7 @@ final class AppViewModel: ObservableObject {
         progress = 0
         results = []
         let urls = images.map(\.url)
-        let outputDirectory = BatchProcessor.makeExportDirectory(near: urls)
+        let outputDirectory = BatchProcessor.makeExportDirectory(near: urls, customDirectory: customExportDirectory)
         let activeSettings = settings()
         let activeFocus = await buildFocusObservationMap(for: images)
         results = await processor.process(urls: urls, formats: selectedFormats, outputDirectory: outputDirectory, settings: activeSettings, decisionOverrides: manualDecisions, focusObservations: activeFocus) { done, total in
